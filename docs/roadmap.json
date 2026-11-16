@@ -141,7 +141,7 @@
                     "version": "0.1.3",
                     "type": "backend",
                     "changeType": "add",
-                    "done": false,
+                    "done": true,
                     "structure": {
                         "table": "user_passwords",
                         "columns": [
