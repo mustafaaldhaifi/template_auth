@@ -27,7 +27,7 @@
                     "version": "0.0.3",
                     "type": "frontend",
                     "changeType": "add",
-                    "done": false
+                    "done": true
                 },
                 {
                     "id": "auth-navigation",
