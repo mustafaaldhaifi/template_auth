@@ -1,0 +1,52 @@
+# Project Setup
+
+This workspace contains two projects:
+
+```text
+template_auth/
+├─ client/    # Expo and React Native app for web, Android, and iOS
+└─ server/    # Next.js server project
+```
+
+Run the following commands from the `template_auth` directory.
+
+## Create the client project
+
+```bash
+npx create-expo-app@latest client --template blank-typescript --yes
+```
+
+- `npx` runs the project generator without installing it globally.
+- `@latest` uses the latest available version of the generator.
+- `client` is the folder that will be created.
+- `--template blank-typescript` selects a minimal Expo project with TypeScript.
+- `--yes` accepts the setup defaults.
+
+## Add web support
+
+```bash
+cd client
+npx expo install react-dom react-native-web @expo/metro-runtime
+cd ..
+```
+
+`cd client` moves into the client project. `expo install` adds the packages needed to run the app in a web browser and selects versions compatible with Expo. `cd ..` returns to the `template_auth` directory.
+
+## Create the server project
+
+```bash
+npx create-next-app@latest server --ts --eslint --app --src-dir --no-tailwind --empty --use-npm --disable-git --yes
+```
+
+- `server` is the folder that will be created.
+- `--ts` enables TypeScript.
+- `--eslint` sets up ESLint.
+- `--app` selects the Next.js App Router.
+- `--src-dir` places application source files inside `src/`.
+- `--no-tailwind` skips Tailwind CSS setup.
+- `--empty` selects a minimal starter project.
+- `--use-npm` uses npm to install dependencies.
+- `--disable-git` avoids creating a separate Git repository inside `server`.
+- `--yes` accepts the setup defaults.
+
+These commands create the two starter projects. Authentication features will be added later.

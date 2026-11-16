@@ -1,0 +1,59 @@
+{
+    "releases": [
+        {
+            "version": "0.1.0",
+            "title": "Sign-up, login, password recovery, home, and profile interfaces",
+            "status": "not_started",
+            "tasks": [
+                {
+                    "id": "signup-page",
+                    "title": "Build and test /signup with first name, last name, email, password, and password confirmation fields",
+                    "version": "0.0.1",
+                    "type": "frontend",
+                    "changeType": "add",
+                    "done": false
+                },
+                {
+                    "id": "login-page",
+                    "title": "Build and test /login with email and password fields",
+                    "version": "0.0.2",
+                    "type": "frontend",
+                    "changeType": "add",
+                    "done": false
+                },
+                {
+                    "id": "forgot-password-page",
+                    "title": "Build /forgot-password with an email field and a placeholder Send Reset Link button",
+                    "version": "0.0.3",
+                    "type": "frontend",
+                    "changeType": "add",
+                    "done": false
+                },
+                {
+                    "id": "auth-navigation",
+                    "title": "Add links between sign-up, login, and password recovery, and test navigation on mobile and desktop",
+                    "version": "0.0.4",
+                    "type": "frontend",
+                    "changeType": "add",
+                    "done": false
+                },
+                {
+                    "id": "home-screen",
+                    "title": "Build the home screen at /dashboard with a welcome message and sample content",
+                    "version": "0.0.5",
+                    "type": "frontend",
+                    "changeType": "add",
+                    "done": false
+                },
+                {
+                    "id": "profile-screen",
+                    "title": "Build /profile with sample first name, last name, and email, and add navigation between the home and profile screens",
+                    "version": "0.0.6",
+                    "type": "frontend",
+                    "changeType": "add",
+                    "done": false
+                }
+            ]
+        }
+    ]
+}
