@@ -1,4 +1,5 @@
 import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import AppNavigation from '../components/AppNavigation';
 import { authColors } from '../theme/authColors';
 
 const summaryCards = [
@@ -15,7 +16,7 @@ const sampleUpdates = [
 /**
  * Displays a sample home dashboard on web, Android, and iOS.
  * 1. Choose a card layout based on the available window width.
- * 2. Show a welcome message and clearly labeled sample summary cards.
+ * 2. Show navigation, a welcome message, and sample summary cards.
  * 3. Show a small sample activity list beneath the overview.
  */
 export default function DashboardPage() {
@@ -23,14 +24,11 @@ export default function DashboardPage() {
   const { width } = useWindowDimensions();
   const showCardsInRow = width >= 760;
 
-  // STEP 2: Present the welcome message and sample overview.
+  // STEP 2: Present navigation, the welcome message, and sample overview.
   return (
     <ScrollView contentContainerStyle={styles.page}>
       <View style={styles.content}>
-        <View style={styles.brandRow}>
-          <View style={styles.mark}><Text style={styles.markText}>A</Text></View>
-          <Text style={styles.brandName}>Your space</Text>
-        </View>
+        <AppNavigation current="dashboard" />
 
         <View style={styles.hero}>
           <Text style={styles.eyebrow}>HOME</Text>
@@ -74,10 +72,6 @@ export default function DashboardPage() {
 const styles = StyleSheet.create({
   page: { flexGrow: 1, backgroundColor: authColors.background, paddingHorizontal: 20, paddingVertical: 42 },
   content: { width: '100%', maxWidth: 980, alignSelf: 'center' },
-  brandRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 42 },
-  mark: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: authColors.accent, marginRight: 11 },
-  markText: { color: '#FFFFFF', fontSize: 22, fontWeight: '700' },
-  brandName: { color: authColors.ink, fontSize: 17, fontWeight: '700' },
   hero: { marginBottom: 38 },
   eyebrow: { color: authColors.accent, fontSize: 12, fontWeight: '700', letterSpacing: 2, marginBottom: 11 },
   title: { color: authColors.ink, fontSize: 38, lineHeight: 46, fontWeight: '700' },
