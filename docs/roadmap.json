@@ -29,25 +29,25 @@
                     "changeType": "add",
                     "done": true
                 },
-                {
-                    "id": "auth-navigation",
-                    "title": "Add links between sign-up, login, and password recovery, and test navigation on mobile and desktop",
+                  {
+                    "id": "home-screen",
+                    "title": "Build the home screen at /dashboard with a welcome message and sample content",
                     "version": "0.0.4",
                     "type": "frontend",
                     "changeType": "add",
-                    "done": false
+                    "done": true
                 },
-                {
-                    "id": "home-screen",
-                    "title": "Build the home screen at /dashboard with a welcome message and sample content",
+                  {
+                    "id": "profile-screen",
+                    "title": "Build /profile with sample first name, last name, and email, and add navigation between the home and profile screens",
                     "version": "0.0.5",
                     "type": "frontend",
                     "changeType": "add",
                     "done": false
                 },
                 {
-                    "id": "profile-screen",
-                    "title": "Build /profile with sample first name, last name, and email, and add navigation between the home and profile screens",
+                    "id": "auth-navigation",
+                    "title": "Add links between pages",
                     "version": "0.0.6",
                     "type": "frontend",
                     "changeType": "add",
