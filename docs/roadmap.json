@@ -19,7 +19,7 @@
                     "version": "0.0.2",
                     "type": "frontend",
                     "changeType": "add",
-                    "done": false
+                    "done": true
                 },
                 {
                     "id": "forgot-password-page",
