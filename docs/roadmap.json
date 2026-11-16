@@ -29,7 +29,7 @@
                     "changeType": "add",
                     "done": true
                 },
-                  {
+                {
                     "id": "home-screen",
                     "title": "Build the home screen at /dashboard with a welcome message and sample content",
                     "version": "0.0.4",
@@ -37,7 +37,7 @@
                     "changeType": "add",
                     "done": true
                 },
-                  {
+                {
                     "id": "profile-screen",
                     "title": "Build /profile with sample first name, last name, and email, and add navigation between the home and profile screens",
                     "version": "0.0.5",
@@ -52,6 +52,202 @@
                     "type": "frontend",
                     "changeType": "add",
                     "done": true
+                }
+            ]
+        },
+        {
+            "version": "0.2.0",
+            "title": "Connect all account screens to the backend",
+            "status": "in_progress",
+            "tasks": [
+                {
+                    "id": "create-users-table",
+                    "title": "Create the users table",
+                    "version": "0.1.1",
+                    "type": "backend",
+                    "changeType": "add",
+                    "done": true,
+                    "structure": {
+                        "table": "users",
+                        "columns": [
+                            {
+                                "name": "id",
+                                "type": "uuid",
+                                "nullable": false,
+                                "primaryKey": true
+                            },
+                            {
+                                "name": "first_name",
+                                "type": "text",
+                                "nullable": false
+                            },
+                            {
+                                "name": "last_name",
+                                "type": "text",
+                                "nullable": false
+                            },
+                            {
+                                "name": "created_at",
+                                "type": "timestamptz",
+                                "nullable": false,
+                                "default": "now()"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": "create-user-emails-table",
+                    "title": "Create the user_emails table",
+                    "version": "0.1.2",
+                    "type": "backend",
+                    "changeType": "add",
+                    "done": false,
+                    "structure": {
+                        "table": "user_emails",
+                        "columns": [
+                            {
+                                "name": "id",
+                                "type": "uuid",
+                                "nullable": false,
+                                "primaryKey": true
+                            },
+                            {
+                                "name": "user_id",
+                                "type": "uuid",
+                                "nullable": false,
+                                "references": {
+                                    "table": "users",
+                                    "column": "id"
+                                }
+                            },
+                            {
+                                "name": "email",
+                                "type": "text",
+                                "nullable": false,
+                                "unique": true
+                            },
+                            {
+                                "name": "created_at",
+                                "type": "timestamptz",
+                                "nullable": false,
+                                "default": "now()"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": "create-user-passwords-table",
+                    "title": "Create the table for password credentials",
+                    "version": "0.1.3",
+                    "type": "backend",
+                    "changeType": "add",
+                    "done": false,
+                    "structure": {
+                        "table": "user_passwords",
+                        "columns": [
+                            {
+                                "name": "user_id",
+                                "type": "uuid",
+                                "nullable": false,
+                                "primaryKey": true,
+                                "references": {
+                                    "table": "users",
+                                    "column": "id"
+                                }
+                            },
+                            {
+                                "name": "password_hash",
+                                "type": "text",
+                                "nullable": false
+                            },
+                            {
+                                "name": "created_at",
+                                "type": "timestamptz",
+                                "nullable": false,
+                                "default": "now()"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": "create-signup-endpoint",
+                    "title": "Add POST /api/auth/signup to validate input and create the user, email, and password credential in one transaction",
+                    "version": "0.1.4",
+                    "type": "backend",
+                    "changeType": "add",
+                    "done": false
+                },
+                {
+                    "id": "connect-signup-form",
+                    "title": "Connect /signup to the sign-up API, submit first and last names separately, and display success and error messages",
+                    "version": "0.1.5",
+                    "type": "frontend",
+                    "changeType": "update",
+                    "done": false
+                },
+                {
+                    "id": "create-login-logout-endpoints",
+                    "title": "Add POST /api/auth/login to create a session and POST /api/auth/logout to invalidate it",
+                    "version": "0.1.6",
+                    "type": "backend",
+                    "changeType": "add",
+                    "done": false
+                },
+                {
+                    "id": "create-current-user-endpoint",
+                    "title": "Add GET /api/auth/me to return the signed-in user's first name, last name, and email",
+                    "version": "0.1.7",
+                    "type": "backend",
+                    "changeType": "add",
+                    "done": false
+                },
+                {
+                    "id": "connect-login-screen",
+                    "title": "Connect /login to the login API, show errors, and navigate to /dashboard after successful login",
+                    "version": "0.1.8",
+                    "type": "frontend",
+                    "changeType": "update",
+                    "done": false
+                },
+                {
+                    "id": "connect-home-screen",
+                    "title": "Connect /dashboard to the current-user API, show the user's real first name, support logout, and redirect to /login when the user has no valid session",
+                    "version": "0.1.9",
+                    "type": "frontend",
+                    "changeType": "update",
+                    "done": false
+                },
+                {
+                    "id": "connect-profile-screen",
+                    "title": "Connect /profile to the current-user API and display the signed-in user's first name, last name, and email",
+                    "version": "0.1.10",
+                    "type": "frontend",
+                    "changeType": "update",
+                    "done": false
+                },
+                {
+                    "id": "create-password-reset-endpoints",
+                    "title": "Add POST /api/auth/forgot-password to request a reset link and POST /api/auth/reset-password to set a new password",
+                    "version": "0.1.11",
+                    "type": "backend",
+                    "changeType": "add",
+                    "done": false
+                },
+                {
+                    "id": "connect-forgot-password-screen",
+                    "title": "Connect /forgot-password to the reset request API and display the result",
+                    "version": "0.1.12",
+                    "type": "frontend",
+                    "changeType": "update",
+                    "done": false
+                },
+                {
+                    "id": "add-reset-password-screen",
+                    "title": "Build /reset-password, open it from the reset link, and connect the new password form to the reset API",
+                    "version": "0.1.13",
+                    "type": "frontend",
+                    "changeType": "add",
+                    "done": false
                 }
             ]
         }
