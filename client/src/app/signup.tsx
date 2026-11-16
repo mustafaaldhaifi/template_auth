@@ -6,6 +6,7 @@ import {
   View,
 } from 'react-native';
 import AuthInput from '../components/AuthInput';
+import AuthNavigation from '../components/AuthNavigation';
 import { authStyles } from '../theme/authStyles';
 
 type SignupField = 'firstName' | 'lastName' | 'email' | 'password' | 'confirmPassword';
@@ -51,7 +52,7 @@ function validateSignup(values: SignupValues): SignupErrors {
  * Presents the shared sign-up form on web, Android, and iOS.
  * 1. Keep entered values and field errors in local state.
  * 2. Validate on submit and show field-specific errors when needed.
- * 3. Show an honest readiness message until account creation is implemented.
+ * 3. Show an honest readiness message and links to the other pages.
  */
 export default function SignupPage() {
   // STEP 1: Track the draft and feedback for the current form session.
@@ -119,6 +120,7 @@ export default function SignupPage() {
           </Pressable>
           {result ? <Text accessibilityRole="alert" style={[authStyles.result, Object.keys(errors).length > 0 && authStyles.resultError]}>{result}</Text> : null}
         </View>
+        <AuthNavigation current="signup" />
       </View>
     </ScrollView>
   );

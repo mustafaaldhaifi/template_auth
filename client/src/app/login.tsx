@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import AuthInput from '../components/AuthInput';
+import AuthNavigation from '../components/AuthNavigation';
 import { authStyles } from '../theme/authStyles';
 
 type LoginField = 'email' | 'password';
@@ -36,7 +37,7 @@ function validateLogin(values: LoginValues): LoginErrors {
  * Presents the login form on web, Android, and iOS.
  * 1. Track email, password, and local feedback.
  * 2. Validate when the user submits the form.
- * 3. Render the result without claiming a session was created.
+ * 3. Render the result and page links without claiming a session was created.
  */
 export default function LoginPage() {
   // STEP 1: Hold only the current form values and feedback.
@@ -115,6 +116,7 @@ export default function LoginPage() {
           </Pressable>
           {result ? <Text accessibilityRole="alert" style={[authStyles.result, Object.keys(errors).length > 0 && authStyles.resultError]}>{result}</Text> : null}
         </View>
+        <AuthNavigation current="login" />
       </View>
     </ScrollView>
   );

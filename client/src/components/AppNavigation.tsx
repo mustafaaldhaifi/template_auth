@@ -30,6 +30,11 @@ export default function AppNavigation({ current }: AppNavigationProps) {
             <Text style={[styles.linkText, current === 'profile' && styles.linkTextActive]}>Profile</Text>
           </Pressable>
         </Link>
+        <Link href="/login" asChild>
+          <Pressable accessibilityLabel="Log in" style={styles.link}>
+            <Text style={styles.linkText}>Log in</Text>
+          </Pressable>
+        </Link>
       </View>
     </View>
   );
