@@ -3,7 +3,7 @@
         {
             "version": "0.1.0",
             "title": "Sign-up, login, password recovery, home, and profile interfaces",
-            "status": "ready_for_review",
+            "status": "completed",
             "tasks": [
                 {
                     "id": "signup-page",
