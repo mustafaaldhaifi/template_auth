@@ -101,7 +101,7 @@
                     "version": "0.1.2",
                     "type": "backend",
                     "changeType": "add",
-                    "done": false,
+                    "done": true,
                     "structure": {
                         "table": "user_emails",
                         "columns": [
