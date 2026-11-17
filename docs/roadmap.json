@@ -175,7 +175,7 @@
                     "version": "0.1.4",
                     "type": "backend",
                     "changeType": "add",
-                    "done": false
+                    "done": true
                 },
                 {
                     "id": "connect-signup-form",

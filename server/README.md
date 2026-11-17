@@ -16,6 +16,24 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Sign-up API
+
+Set `DATABASE_URL` to a PostgreSQL connection string before starting the server. For the linked Neon development branch in PowerShell:
+
+```powershell
+$env:DATABASE_URL = neon connection-string development --project-id weathered-sea-18643118 --pooled --ssl verify-full
+npm run dev
+```
+
+`POST /api/auth/signup` accepts JSON with string fields `firstName`, `lastName`, `email`, `password`, and `confirmPassword`. Names are trimmed, the email is trimmed and stored in lowercase, passwords must contain 8–128 characters, and the confirmation must match. The password is stored only as a salted scrypt hash.
+
+- `201`: `{ "data": { "id": "<uuid>", "firstName": "...", "lastName": "...", "email": "..." } }`
+- `400`: `{ "error": { "code": "VALIDATION_ERROR", "message": "...", "fieldErrors": { "email": "..." } } }` for invalid fields, or `INVALID_JSON` for malformed JSON.
+- `409`: `{ "error": { "code": "EMAIL_ALREADY_EXISTS", "message": "...", "fieldErrors": { "email": "..." } } }` for a registered email.
+- `500`: `{ "error": { "code": "INTERNAL_ERROR", "message": "..." } }` when account creation fails unexpectedly.
+
+Account creation writes `users`, `user_emails`, and `user_passwords` in one transaction. A successful sign-up does not create a login session.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 ## Learn More
