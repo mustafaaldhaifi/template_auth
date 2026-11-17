@@ -183,7 +183,7 @@
                     "version": "0.1.5",
                     "type": "frontend",
                     "changeType": "update",
-                    "done": false
+                    "done": true
                 },
                 {
                     "id": "create-login-logout-endpoints",

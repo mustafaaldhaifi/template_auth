@@ -11,6 +11,7 @@ type AuthInputProps = {
   autoComplete?: TextInputProps['autoComplete'];
   keyboardType?: TextInputProps['keyboardType'];
   secureTextEntry?: boolean;
+  editable?: boolean;
 };
 
 export default function AuthInput({
@@ -22,6 +23,7 @@ export default function AuthInput({
   autoComplete,
   keyboardType = 'default',
   secureTextEntry = false,
+  editable = true,
 }: AuthInputProps) {
   return (
     <View style={styles.field}>
@@ -32,6 +34,7 @@ export default function AuthInput({
         autoCapitalize={autoCapitalize}
         autoComplete={autoComplete}
         autoCorrect={false}
+        editable={editable}
         keyboardType={keyboardType}
         onChangeText={onChangeText}
         placeholder={label}

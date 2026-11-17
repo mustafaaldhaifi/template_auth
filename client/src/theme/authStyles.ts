@@ -12,6 +12,7 @@ export const authStyles = StyleSheet.create({
   form: { marginTop: 28 },
   button: { alignItems: 'center', justifyContent: 'center', minHeight: 50, marginTop: 6, backgroundColor: authColors.accent, borderRadius: 10 },
   buttonPressed: { opacity: 0.85 },
+  buttonDisabled: { opacity: 0.6 },
   buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
   result: { color: authColors.accent, fontSize: 14, lineHeight: 20, marginTop: 16, textAlign: 'center' },
   resultError: { color: authColors.error },
