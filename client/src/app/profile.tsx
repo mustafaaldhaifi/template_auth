@@ -1,49 +1,55 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import AccountStatus from '../components/AccountStatus';
 import AppNavigation from '../components/AppNavigation';
+import { useAuthenticatedUser } from '../hooks/useAuthenticatedUser';
+import { useLogout } from '../hooks/useLogout';
 import { authColors } from '../theme/authColors';
 
-const sampleProfile = {
-  firstName: 'Jane',
-  lastName: 'Doe',
-  email: 'jane.doe@example.com',
-};
-
-const profileFields = [
-  { label: 'First name', value: sampleProfile.firstName },
-  { label: 'Last name', value: sampleProfile.lastName },
-  { label: 'Email address', value: sampleProfile.email },
-];
-
 /**
- * Shows a sample profile and shared home/profile navigation.
- * 1. Render the shared navigation with Profile selected.
- * 2. Identify the displayed person as sample data.
- * 3. List the sample first name, last name, and email address.
+ * Shows the signed-in user's profile and shared navigation.
+ * 1. Check the session before showing personal details.
+ * 2. Provide retry feedback for temporary request failures.
+ * 3. Display the account's first name, last name, and email.
  */
 export default function ProfilePage() {
-  // STEP 1: Make both home and profile available from this screen.
+  const { state, retry } = useAuthenticatedUser();
+  const { handleLogout, logoutPending, logoutError } = useLogout();
+
+  // STEP 1: Keep personal details hidden until the current session is verified.
+  if (state.status !== 'ready') {
+    // STEP 2: Offer a retry only when a temporary request failure occurs.
+    return <AccountStatus error={state.status === 'error' ? state.message : undefined} onRetry={retry} />;
+  }
+
+  // STEP 3: Derive the visible identity from the server response.
+  const { firstName, lastName, email } = state.user;
+  const profileFields = [
+    { label: 'First name', value: firstName },
+    { label: 'Last name', value: lastName },
+    { label: 'Email address', value: email },
+  ];
+  const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+
   return (
     <ScrollView contentContainerStyle={styles.page}>
       <View style={styles.content}>
-        <AppNavigation current="profile" />
+        <AppNavigation current="profile" onLogout={handleLogout} logoutPending={logoutPending} />
+        {logoutError ? <Text accessibilityRole="alert" style={styles.logoutError}>{logoutError}</Text> : null}
 
-        {/* STEP 2: State clearly that this is example profile information. */}
         <View style={styles.hero}>
           <Text style={styles.eyebrow}>PROFILE</Text>
           <Text style={styles.title}>Your profile</Text>
-          <Text style={styles.subtitle}>A preview of the personal details shown in your space.</Text>
+          <Text style={styles.subtitle}>Your account details.</Text>
         </View>
 
         <View style={styles.profileCard}>
           <View style={styles.profileHeader}>
-            <View style={styles.avatar}><Text style={styles.avatarText}>JD</Text></View>
+            <View style={styles.avatar}><Text style={styles.avatarText}>{initials}</Text></View>
             <View style={styles.identity}>
-              <Text style={styles.name}>Jane Doe</Text>
-              <Text style={styles.sampleLabel}>SAMPLE PROFILE</Text>
+              <Text style={styles.name}>{firstName} {lastName}</Text>
             </View>
           </View>
 
-          {/* STEP 3: Present the approved sample fields in a readable list. */}
           <View style={styles.details}>
             {profileFields.map((field) => (
               <View key={field.label} style={styles.detailRow}>
@@ -61,6 +67,7 @@ export default function ProfilePage() {
 const styles = StyleSheet.create({
   page: { flexGrow: 1, backgroundColor: authColors.background, paddingHorizontal: 20, paddingVertical: 42 },
   content: { width: '100%', maxWidth: 980, alignSelf: 'center' },
+  logoutError: { color: authColors.error, fontSize: 14, marginBottom: 20 },
   hero: { marginBottom: 28 },
   eyebrow: { color: authColors.accent, fontSize: 12, fontWeight: '700', letterSpacing: 2, marginBottom: 11 },
   title: { color: authColors.ink, fontSize: 38, lineHeight: 46, fontWeight: '700' },
@@ -71,7 +78,6 @@ const styles = StyleSheet.create({
   avatarText: { color: authColors.accent, fontSize: 20, fontWeight: '700' },
   identity: { flex: 1 },
   name: { color: authColors.ink, fontSize: 23, fontWeight: '700' },
-  sampleLabel: { color: authColors.accent, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, marginTop: 7 },
   details: { borderTopColor: authColors.border, borderTopWidth: 1 },
   detailRow: { paddingVertical: 17, borderBottomColor: authColors.border, borderBottomWidth: 1 },
   detailLabel: { color: authColors.muted, fontSize: 13, fontWeight: '600', marginBottom: 6 },

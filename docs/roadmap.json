@@ -202,20 +202,12 @@
                     "done": true
                 },
                 {
-                    "id": "connect-home-screen",
-                    "title": "Connect /dashboard to the current-user API, show the user's real first name, and redirect to /login when the user has no valid session",
+                    "id": "connect-profile-and-dashboard",
+                    "title": "Connect /profile to the current-user API and display the signed-in user's first name, last name, and email; redirect unauthenticated users from /profile and /dashboard to /login; keep /dashboard empty apart from navigation and logout",
                     "version": "0.1.9",
                     "type": "frontend",
                     "changeType": "update",
-                    "done": false
-                },
-                {
-                    "id": "connect-profile-screen",
-                    "title": "Connect /profile to the current-user API and display the signed-in user's first name, last name, and email",
-                    "version": "0.1.10",
-                    "type": "frontend",
-                    "changeType": "update",
-                    "done": false
+                    "done": true
                 },
                 {
                     "id": "create-password-reset-endpoints",
