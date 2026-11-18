@@ -294,7 +294,7 @@
                     "version": "0.2.2",
                     "type": "frontend",
                     "changeType": "add",
-                    "done": false,
+                    "done": true,
                     "verification": "On web, Android, and iOS, the password form renders and validates its fields; saving waits for the backend and final integration tasks."
                 },
                 {
