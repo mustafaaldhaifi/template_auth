@@ -199,7 +199,7 @@
                     "version": "0.1.7",
                     "type": "backend",
                     "changeType": "add",
-                    "done": false
+                    "done": true
                 },
                 {
                     "id": "connect-home-screen",
