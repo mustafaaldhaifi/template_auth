@@ -1,17 +1,40 @@
+import { type Generated, Kysely, PostgresDialect } from 'kysely';
 import { Pool } from 'pg';
 
-let databasePool: Pool | undefined;
+interface DatabaseTables {
+  users: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    created_at: Generated<Date>;
+  };
+  user_emails: {
+    id: string;
+    user_id: string;
+    email: string;
+    created_at: Generated<Date>;
+  };
+  user_passwords: {
+    user_id: string;
+    password_hash: string;
+    created_at: Generated<Date>;
+  };
+}
 
-/** Returns the shared PostgreSQL pool, creating it from the server environment when first needed. */
-export function getDatabasePool(): Pool {
-  if (!databasePool) {
+let database: Kysely<DatabaseTables> | undefined;
+
+/** Returns the shared, typed query builder using the existing PostgreSQL connection setting. */
+export function getDatabase(): Kysely<DatabaseTables> {
+  if (!database) {
     const connectionString = process.env.DATABASE_URL;
     if (!connectionString) {
       throw new Error('DATABASE_URL is not configured.');
     }
 
-    databasePool = new Pool({ connectionString });
+    database = new Kysely<DatabaseTables>({
+      dialect: new PostgresDialect({ pool: new Pool({ connectionString }) }),
+    }).withSchema('public');
   }
 
-  return databasePool;
+  return database;
 }

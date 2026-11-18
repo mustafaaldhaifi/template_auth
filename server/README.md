@@ -34,6 +34,14 @@ npm run dev
 
 Account creation writes `users`, `user_emails`, and `user_passwords` in one transaction. A successful sign-up does not create a login session.
 
+## Local login session
+
+`POST /api/auth/login` accepts JSON string fields `email` and `password`. A successful request returns `200` with `{ "data": { "id", "firstName", "lastName", "email" } }` and an `HttpOnly` `auth_session` cookie valid for seven days. Invalid fields return `400` with `VALIDATION_ERROR` and `fieldErrors`; wrong credentials return `401` with `INVALID_CREDENTIALS`. Malformed JSON returns `400` with `INVALID_JSON`. Unexpected server failures return `500` with `INTERNAL_ERROR`.
+
+`POST /api/auth/logout` takes no body. It invalidates the cookie's session and returns `204` with an empty body and an expired cookie, including when no session was supplied. Browser requests from the Expo web development origin must include credentials. In production, set `CLIENT_ORIGIN` to the exact client origin to enable credentialed cross-origin requests.
+
+Sessions live in this server process and are cleared when it restarts. This is the local session requested for this task; account data and password hashes remain in PostgreSQL.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 ## Learn More

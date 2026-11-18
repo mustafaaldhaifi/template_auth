@@ -187,11 +187,11 @@
                 },
                 {
                     "id": "create-login-logout-endpoints",
-                    "title": "Add POST /api/auth/login to create a session and POST /api/auth/logout to invalidate it",
+                    "title": "Add login and logout endpoints, connect /login to the login API with errors and dashboard navigation, and add logout to /dashboard",
                     "version": "0.1.6",
                     "type": "backend",
                     "changeType": "add",
-                    "done": false
+                    "done": true
                 },
                 {
                     "id": "create-current-user-endpoint",
@@ -202,16 +202,8 @@
                     "done": false
                 },
                 {
-                    "id": "connect-login-screen",
-                    "title": "Connect /login to the login API, show errors, and navigate to /dashboard after successful login",
-                    "version": "0.1.8",
-                    "type": "frontend",
-                    "changeType": "update",
-                    "done": false
-                },
-                {
                     "id": "connect-home-screen",
-                    "title": "Connect /dashboard to the current-user API, show the user's real first name, support logout, and redirect to /login when the user has no valid session",
+                    "title": "Connect /dashboard to the current-user API, show the user's real first name, and redirect to /login when the user has no valid session",
                     "version": "0.1.9",
                     "type": "frontend",
                     "changeType": "update",

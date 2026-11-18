@@ -1,4 +1,8 @@
+import { useRef, useState } from 'react';
+import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { logout } from '../api/auth';
+import { ApiRequestError } from '../api/client';
 import AppNavigation from '../components/AppNavigation';
 import { authColors } from '../theme/authColors';
 
@@ -16,19 +20,49 @@ const sampleUpdates = [
 /**
  * Displays a sample home dashboard on web, Android, and iOS.
  * 1. Choose a card layout based on the available window width.
- * 2. Show navigation, a welcome message, and sample summary cards.
- * 3. Show a small sample activity list beneath the overview.
+ * 2. Provide logout feedback and return to login after the session ends.
+ * 3. Show navigation, sample summary cards, and recent activity.
  */
 export default function DashboardPage() {
   // STEP 1: Reflow the summary cards as the window width changes.
   const { width } = useWindowDimensions();
   const showCardsInRow = width >= 760;
+  const router = useRouter();
+  const [logoutPending, setLogoutPending] = useState(false);
+  const [logoutError, setLogoutError] = useState('');
+  const logoutInFlight = useRef(false);
 
-  // STEP 2: Present navigation, the welcome message, and sample overview.
+  /**
+   * Ends the current session from the dashboard.
+   * 1. Guard against repeated taps and show progress.
+   * 2. Invalidate the session and return to login.
+   * 3. Keep the screen visible with feedback if the request fails.
+   */
+  async function handleLogout() {
+    // STEP 1: One request must finish before another starts.
+    if (logoutInFlight.current) return;
+    logoutInFlight.current = true;
+    setLogoutPending(true);
+    setLogoutError('');
+    try {
+      // STEP 2: Navigate only after the server clears the session.
+      await logout();
+      router.replace('/login');
+    } catch (error) {
+      // STEP 3: Allow retry when the server cannot be reached.
+      setLogoutError(error instanceof ApiRequestError ? error.message : 'Could not log out. Please try again.');
+    } finally {
+      logoutInFlight.current = false;
+      setLogoutPending(false);
+    }
+  }
+
+  // STEP 3: Present navigation, the welcome message, and sample overview.
   return (
     <ScrollView contentContainerStyle={styles.page}>
       <View style={styles.content}>
-        <AppNavigation current="dashboard" />
+        <AppNavigation current="dashboard" onLogout={handleLogout} logoutPending={logoutPending} />
+        {logoutError ? <Text accessibilityRole="alert" style={styles.logoutError}>{logoutError}</Text> : null}
 
         <View style={styles.hero}>
           <Text style={styles.eyebrow}>HOME</Text>
@@ -72,6 +106,7 @@ export default function DashboardPage() {
 const styles = StyleSheet.create({
   page: { flexGrow: 1, backgroundColor: authColors.background, paddingHorizontal: 20, paddingVertical: 42 },
   content: { width: '100%', maxWidth: 980, alignSelf: 'center' },
+  logoutError: { color: authColors.error, fontSize: 14, marginBottom: 20 },
   hero: { marginBottom: 38 },
   eyebrow: { color: authColors.accent, fontSize: 12, fontWeight: '700', letterSpacing: 2, marginBottom: 11 },
   title: { color: authColors.ink, fontSize: 38, lineHeight: 46, fontWeight: '700' },

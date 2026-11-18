@@ -1,17 +1,19 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import AuthInput from '../components/AuthInput';
 import AuthNavigation from '../components/AuthNavigation';
+import { ApiRequestError } from '../api/client';
+import { login, type LoginValues } from '../api/auth';
 import { authStyles } from '../theme/authStyles';
 
 type LoginField = 'email' | 'password';
-type LoginValues = Record<LoginField, string>;
 type LoginErrors = Partial<Record<LoginField, string>>;
 
 const initialValues: LoginValues = { email: '', password: '' };
 
 /**
- * Checks the two login fields without attempting authentication.
+ * Checks the two login fields before authentication.
  * 1. Require a valid email address.
  * 2. Require a non-empty password.
  * 3. Return messages associated with the invalid fields.
@@ -20,13 +22,13 @@ function validateLogin(values: LoginValues): LoginErrors {
   const errors: LoginErrors = {};
 
   // STEP 1: Check the email format.
-  if (!/^\S+@\S+\.\S+$/.test(values.email.trim())) {
+  if (!/^\S+@\S+\.\S+$/.test(values.email.trim()) || values.email.trim().length > 254) {
     errors.email = 'Enter a valid email address.';
   }
 
   // STEP 2: Require a password without imposing sign-up password rules.
-  if (!values.password) {
-    errors.password = 'Enter your password.';
+  if (!values.password || values.password.length > 128) {
+    errors.password = 'Enter a password of up to 128 characters.';
   }
 
   // STEP 3: Keep feedback next to the affected fields.
@@ -35,15 +37,18 @@ function validateLogin(values: LoginValues): LoginErrors {
 
 /**
  * Presents the login form on web, Android, and iOS.
- * 1. Track email, password, and local feedback.
- * 2. Validate when the user submits the form.
- * 3. Render the result and page links without claiming a session was created.
+ * 1. Track credentials, field errors, and request progress.
+ * 2. Validate and submit credentials through the shared API module.
+ * 3. Navigate to the dashboard on success or display the server error.
  */
 export default function LoginPage() {
   // STEP 1: Hold only the current form values and feedback.
   const [values, setValues] = useState<LoginValues>(initialValues);
   const [errors, setErrors] = useState<LoginErrors>({});
   const [result, setResult] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submissionInFlight = useRef(false);
+  const router = useRouter();
 
   /**
    * Updates a field and clears feedback that may no longer apply.
@@ -64,24 +69,39 @@ export default function LoginPage() {
   }
 
   /**
-   * Reports the form's local validation result.
-   * 1. Validate and display field errors.
-   * 2. Stop when either field is invalid.
-   * 3. Confirm readiness without authenticating the user.
+   * Submits one login request after local validation.
+   * 1. Reject duplicate or invalid submissions.
+   * 2. Send credentials and navigate after the session is created.
+   * 3. Show errors and restore the form when the request fails.
    */
-  function handleSubmit() {
-    // STEP 1: Validate the full draft.
+  async function handleSubmit() {
+    // STEP 1: Keep an overlapping request from creating multiple sessions.
+    if (submissionInFlight.current) return;
     const nextErrors = validateLogin(values);
     setErrors(nextErrors);
-
-    // STEP 2: Keep invalid submissions on the form.
     if (Object.keys(nextErrors).length > 0) {
       setResult('Please correct the highlighted fields.');
       return;
     }
-
-    // STEP 3: Authentication will be added when a login endpoint is planned.
-    setResult('Your details look good. Sign-in will be available soon.');
+    // STEP 2: Move to the dashboard only after the server accepts credentials.
+    submissionInFlight.current = true;
+    setIsSubmitting(true);
+    setResult('');
+    try {
+      await login(values);
+      router.replace('/dashboard');
+    } catch (error) {
+      // STEP 3: Keep the form available with the server's specific feedback.
+      if (error instanceof ApiRequestError) {
+        setErrors({ email: error.fieldErrors.email, password: error.fieldErrors.password });
+        setResult(error.message);
+      } else {
+        setResult('Could not log in. Please try again.');
+      }
+    } finally {
+      submissionInFlight.current = false;
+      setIsSubmitting(false);
+    }
   }
 
   // STEP 3: Render the login page with the shared authentication design.
@@ -101,6 +121,7 @@ export default function LoginPage() {
             error={errors.email}
             autoComplete="email"
             keyboardType="email-address"
+            editable={!isSubmitting}
           />
           <AuthInput
             label="Password"
@@ -109,12 +130,13 @@ export default function LoginPage() {
             error={errors.password}
             autoComplete="current-password"
             secureTextEntry
+            editable={!isSubmitting}
           />
 
-          <Pressable accessibilityRole="button" onPress={handleSubmit} style={({ pressed }) => [authStyles.button, pressed && authStyles.buttonPressed]}>
-            <Text style={authStyles.buttonText}>Log in</Text>
+          <Pressable accessibilityRole="button" accessibilityState={{ disabled: isSubmitting, busy: isSubmitting }} disabled={isSubmitting} onPress={handleSubmit} style={({ pressed }) => [authStyles.button, isSubmitting && authStyles.buttonDisabled, pressed && authStyles.buttonPressed]}>
+            <Text style={authStyles.buttonText}>{isSubmitting ? 'Logging in...' : 'Log in'}</Text>
           </Pressable>
-          {result ? <Text accessibilityRole="alert" style={[authStyles.result, Object.keys(errors).length > 0 && authStyles.resultError]}>{result}</Text> : null}
+          {result ? <Text accessibilityRole="alert" style={[authStyles.result, authStyles.resultError]}>{result}</Text> : null}
         </View>
         <AuthNavigation current="login" />
       </View>

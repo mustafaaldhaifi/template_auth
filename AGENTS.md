@@ -13,6 +13,7 @@
 - Start the first task once the approved release is eligible to begin. Set the release status to `in_progress` when implementation starts.
 - Work on one task at a time, in roadmap order. If I ask you to continue, resume the first unfinished task. If that task is awaiting my review, show me how to verify it and wait for my approval.
 - After implementing a task, summarize what changed and give me the steps and expected results so I can test it myself on the affected platforms. Share a preview link or screenshots for UI changes when available.
+- I test the interface myself. Do not start development servers or run browser/UI tests unless I explicitly request it. You may run static checks such as TypeScript and lint.
 - If I ask for changes, revise the same task and show me the updated result.
 - After I approve the task, set `done` to `true` and commit the code and roadmap changes locally. Start the next task only after this approval.
 - After I approve the final task, set the release status to `ready_for_review`. Show me how to test the full release and wait for my approval of the release.
@@ -39,6 +40,7 @@
 - Use a consistent design across web, Android, and iOS. Share colors, typography, spacing, and component styles.
 - Make web layouts responsive across phone, tablet, and desktop widths. Use flexible widths and keep content readable and controls accessible as the browser resizes, without horizontal page scrolling.
 - Write readable code with descriptive names and clear control flow. Add concise documentation comments above functions, components, or modules when their inputs, return values, side effects, or special cases need explanation.
+- When a function becomes difficult to read, apply Extract Method: move cohesive steps into small private helper functions in the same file. Keep the main function focused on execution flow. Create separate files only when the logic is reused or has a clearly separate responsibility. Preserve behavior and keep documentation comments accurate.
 
 ## Database
 

@@ -2,9 +2,13 @@ import { Link } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { authColors } from '../theme/authColors';
 
-type AppNavigationProps = { current: 'dashboard' | 'profile' };
+type AppNavigationProps = {
+  current: 'dashboard' | 'profile';
+  onLogout?: () => void;
+  logoutPending?: boolean;
+};
 
-export default function AppNavigation({ current }: AppNavigationProps) {
+export default function AppNavigation({ current, onLogout, logoutPending = false }: AppNavigationProps) {
   // NOTE: Expo Router's asChild Slot rejects style arrays on its direct child.
   const homeLinkStyle = current === 'dashboard'
     ? StyleSheet.flatten([styles.link, styles.linkActive])
@@ -30,11 +34,17 @@ export default function AppNavigation({ current }: AppNavigationProps) {
             <Text style={[styles.linkText, current === 'profile' && styles.linkTextActive]}>Profile</Text>
           </Pressable>
         </Link>
-        <Link href="/login" asChild>
-          <Pressable accessibilityLabel="Log in" style={styles.link}>
-            <Text style={styles.linkText}>Log in</Text>
+        {onLogout ? (
+          <Pressable accessibilityLabel="Log out" accessibilityRole="button" accessibilityState={{ disabled: logoutPending, busy: logoutPending }} disabled={logoutPending} onPress={onLogout} style={styles.link}>
+            <Text style={styles.linkText}>{logoutPending ? 'Logging out...' : 'Log out'}</Text>
           </Pressable>
-        </Link>
+        ) : (
+          <Link href="/login" asChild>
+            <Pressable accessibilityLabel="Log in" style={styles.link}>
+              <Text style={styles.linkText}>Log in</Text>
+            </Pressable>
+          </Link>
+        )}
       </View>
     </View>
   );
