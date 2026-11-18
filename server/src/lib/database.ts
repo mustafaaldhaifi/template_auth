@@ -25,6 +25,8 @@ interface DatabaseTables {
     expires_at: Date;
     consumed_at: Date | null;
     created_at: Generated<Date>;
+    code_salt: string | null;
+    verified_token_hash: string | null;
   };
 }
 

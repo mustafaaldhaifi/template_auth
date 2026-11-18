@@ -44,19 +44,23 @@ Sessions live in this server process and are cleared when it restarts. This is t
 
 ## Password reset API
 
-Apply the approved token table migration to the development database using a direct, non-pooled PostgreSQL connection:
+Apply the original token table migration if the table is not present. Then apply the code migration to the development database using a direct, non-pooled PostgreSQL connection:
 
 ```powershell
 psql $env:DATABASE_URL_UNPOOLED -f .\migrations\0.1.11_create_password_reset_tokens.sql
+psql $env:DATABASE_URL_UNPOOLED -f .\migrations\0.2.3_use_password_reset_codes.sql
+psql $env:DATABASE_URL_UNPOOLED -c "\d public.password_reset_tokens"
 ```
 
-Set `SMTP_HOST`, `SMTP_FROM`, and `PASSWORD_RESET_URL` in the server environment. `SMTP_PORT` defaults to `587`; set `SMTP_USER` and `SMTP_PASS` together when the SMTP server requires authentication. `PASSWORD_RESET_URL` must be a full URL for the client page that accepts the `token` query parameter. It must use HTTPS outside local development. The reset page is not part of backend task `0.1.11` and is not created by these endpoints.
+Set `SMTP_HOST`, `SMTP_FROM`, and `PASSWORD_RESET_CODE_SECRET` in the server environment. `SMTP_PORT` defaults to `587`; set `SMTP_USER` and `SMTP_PASS` together when the SMTP server requires authentication. `PASSWORD_RESET_CODE_SECRET` must be 64 hexadecimal characters (32 random bytes) and must stay server-only. Generate one in PowerShell with `[Convert]::ToHexString([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)).ToLowerInvariant()`. Keep this secret stable between server restarts while codes may still be active. `PASSWORD_RESET_URL` is no longer used; recovery emails contain only a numeric code.
 
-`POST /api/auth/forgot-password` accepts `{ "email": "..." }`. It returns `204` with no body for both registered and unregistered email addresses, and sends at most one link per account per minute. Invalid input returns `400` with `VALIDATION_ERROR` and `fieldErrors.email`; malformed JSON returns `400` with `INVALID_JSON`. Missing delivery configuration or database failures return `500` with `INTERNAL_ERROR`. Mail delivery failures are logged and still receive the generic `204` response so the API does not reveal account existence.
+`POST /api/auth/forgot-password` accepts `{ "email": "..." }`. It returns `204` with no body for both registered and unregistered email addresses, and sends at most one eight-digit code per account per minute. Invalid input returns `400` with `VALIDATION_ERROR` and `fieldErrors.email`; malformed JSON returns `400` with `INVALID_JSON`. Missing delivery configuration or database failures return `500` with `INTERNAL_ERROR`. Mail delivery failures are logged and still receive the generic `204` response so the API does not reveal account existence.
 
-`POST /api/auth/reset-password` accepts `{ "token": "...", "password": "...", "confirmPassword": "..." }`. Passwords must be 8–128 characters and the confirmation must match. Success returns `204` with no body and clears the current browser's session cookie. Invalid fields return `400` with `VALIDATION_ERROR` and `fieldErrors`; a missing, expired, or used token returns `400` with `INVALID_RESET_TOKEN`; unexpected failures return `500` with `INTERNAL_ERROR`.
+`POST /api/auth/verify-reset-code` accepts `{ "email": "...", "code": "12345678" }`. Keep the code as a string to preserve leading zeroes. A valid code returns `200` with `{ "data": { "token": "<one-time-grant>" } }`. Invalid fields return `400` with `VALIDATION_ERROR` and `fieldErrors`; an unknown account or wrong, expired, or reused code returns `400` with `INVALID_RESET_CODE` and `fieldErrors.code`. Malformed JSON returns `400` with `INVALID_JSON`; server failures return `500` with `INTERNAL_ERROR`. Code-entry attempts are currently unlimited, with no failed-attempt counter or lockout.
 
-Reset links expire after 30 minutes. The database stores only a SHA-256 token digest. Consuming a token, updating the password, and invalidating other reset links happen in one transaction. The server also invalidates the user's sessions in its current process. The local session store must be replaced before running this authentication flow across multiple server processes.
+`POST /api/auth/reset-password` accepts `{ "token": "<one-time-grant>", "password": "...", "confirmPassword": "..." }` after code verification. Passwords must be 8–128 characters and the confirmation must match. Success returns `204` with no body and clears the current browser's session cookie. Invalid fields return `400` with `VALIDATION_ERROR` and `fieldErrors`; a missing, expired, or used grant returns `400` with `INVALID_RESET_TOKEN`; unexpected failures return `500` with `INTERNAL_ERROR`.
+
+Codes and verified grants each expire after 10 minutes. The database stores a salted HMAC digest of the short code and a SHA-256 digest of the verified grant. The code migration marks earlier unused link tokens as consumed while preserving their rows. Verifying a code exchanges it for one grant, so the code cannot be reused. Consuming the grant, updating the password, and invalidating other outstanding codes or grants happen in one transaction. The server also invalidates the user's sessions in its current process. The local session store must be replaced before running this authentication flow across multiple server processes.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

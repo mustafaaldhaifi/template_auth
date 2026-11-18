@@ -1,6 +1,6 @@
 import { authCorsHeaders } from '@/features/auth/authCors';
 import { hashPassword } from '@/features/auth/passwordHash';
-import { consumePasswordResetToken, hasActivePasswordResetToken } from '@/features/auth/passwordResetRepository';
+import { consumePasswordResetGrant, hasActivePasswordResetGrant } from '@/features/auth/passwordResetRepository';
 import { hashPasswordResetToken } from '@/features/auth/passwordResetToken';
 import { validateResetPasswordInput } from '@/features/auth/passwordResetValidation';
 import { expiredSessionCookie, invalidateUserSessions } from '@/features/auth/sessionStore';
@@ -9,21 +9,21 @@ export function OPTIONS(request: Request): Response {
   return new Response(null, { status: 204, headers: authCorsHeaders(request) });
 }
 
-/** Returns the same token error for missing, used, and expired links. */
-function invalidToken(headers: Record<string, string>): Response {
+/** Returns the same grant error for missing, used, and expired authorizations. */
+function invalidGrant(headers: Record<string, string>): Response {
   return Response.json({
     error: {
       code: 'INVALID_RESET_TOKEN',
-      message: 'This reset link is invalid or expired.',
-      fieldErrors: { token: 'Request a new password reset link.' },
+      message: 'This password reset authorization is invalid or expired.',
+      fieldErrors: { token: 'Request a new recovery code.' },
     },
   }, { status: 400, headers });
 }
 
 /**
- * Sets a new password after the user presents a valid reset token.
- * 1. Parse and validate the token and new password fields.
- * 2. Verify the token before hashing, then change the password atomically.
+ * Sets a new password after the user presents a verified reset grant.
+ * 1. Parse and validate the grant and new password fields.
+ * 2. Verify the grant before hashing, then change the password atomically.
  * 3. Clear local sessions and return an empty success response.
  */
 export async function POST(request: Request): Promise<Response> {
@@ -47,14 +47,14 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  // STEP 2: Reject stale links without spending password-hashing work.
+  // STEP 2: Reject stale grants without spending password-hashing work.
   try {
     const tokenHash = hashPasswordResetToken(validation.value.token);
-    if (!await hasActivePasswordResetToken(tokenHash)) return invalidToken(headers);
+    if (!await hasActivePasswordResetGrant(tokenHash)) return invalidGrant(headers);
 
     const passwordHash = await hashPassword(validation.value.password);
-    const userId = await consumePasswordResetToken(tokenHash, passwordHash);
-    if (!userId) return invalidToken(headers);
+    const userId = await consumePasswordResetGrant(tokenHash, passwordHash);
+    if (!userId) return invalidGrant(headers);
 
     // STEP 3: Remove this process's sessions after the database commits.
     invalidateUserSessions(userId);

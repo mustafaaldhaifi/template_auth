@@ -303,7 +303,7 @@
                     "version": "0.2.3",
                     "type": "backend",
                     "changeType": "update",
-                    "done": false,
+                    "done": true,
                     "verification": "A registered address receives an eight-digit code instead of a link; wrong, expired, and reused codes fail; a verified code permits one password change, with no code-entry attempt limit.",
                     "structure": {
                         "table": "password_reset_tokens",
