@@ -277,7 +277,7 @@
         {
             "version": "0.3.0",
             "title": "Recover an account with an eight-digit email code",
-            "status": "ready_for_review",
+            "status": "completed",
             "tasks": [
                 {
                     "id": "shared-recovery-code-screen",
@@ -379,6 +379,64 @@
                     "changeType": "update",
                     "done": true,
                     "verification": "On web, Android, and iOS, a registered user receives a code, verifies it, changes the password, then signs in manually with the new password; invalid and expired codes show errors without limiting entry attempts."
+                }
+            ]
+        },
+        {
+            "version": "0.4.0",
+            "title": "Persist login sessions after successful authentication",
+            "status": "not_started",
+            "tasks": [
+                {
+                    "id": "persist-login-sessions",
+                    "title": "Save a database-backed session only after successful login and use the existing login, logout, and current-user endpoints; invalidate sessions after logout and password reset without adding a route",
+                    "version": "0.3.1",
+                    "type": "backend",
+                    "changeType": "add",
+                    "done": false,
+                    "verification": "Sign in with a valid password, restart the server, and confirm the session still opens protected account data. Confirm invalid credentials create no session, logout ends the current session, and password reset ends the account's sessions.",
+                    "structure": {
+                        "table": "auth_sessions",
+                        "operation": "create",
+                        "columns": [
+                            {
+                                "name": "token_hash",
+                                "type": "text",
+                                "nullable": false,
+                                "primaryKey": true
+                            },
+                            {
+                                "name": "user_id",
+                                "type": "uuid",
+                                "nullable": false,
+                                "references": {
+                                    "table": "users",
+                                    "column": "id",
+                                    "onDelete": "cascade"
+                                }
+                            },
+                            {
+                                "name": "created_at",
+                                "type": "timestamptz",
+                                "nullable": false,
+                                "default": "now()"
+                            },
+                            {
+                                "name": "expires_at",
+                                "type": "timestamptz",
+                                "nullable": false
+                            }
+                        ],
+                        "constraints": [
+                            "length(token_hash) = 64",
+                            "expires_at > created_at"
+                        ],
+                        "indexes": [
+                            {
+                                "columns": ["user_id"]
+                            }
+                        ]
+                    }
                 }
             ]
         }

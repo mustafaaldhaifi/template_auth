@@ -3,7 +3,7 @@
     "name": "client",
     "slug": "client",
     "scheme": "templateauth",
-    "version": "0.1.12",
+    "version": "0.2.4",
     "plugins": ["expo-router"],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
