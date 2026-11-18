@@ -1,26 +1,24 @@
-import { useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
-import { requestPasswordReset } from '../api/auth';
-import { ApiRequestError } from '../api/client';
+import { useState } from 'react';
+import { Link } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import AuthInput from '../components/AuthInput';
 import AuthNavigation from '../components/AuthNavigation';
+import { authColors } from '../theme/authColors';
 import { authStyles } from '../theme/authStyles';
 
 type Feedback = { message: string; kind: 'success' | 'error' } | null;
 
 /**
- * Requests a password reset link on web, Android, and iOS.
- * 1. Track the email, feedback, and request progress.
- * 2. Validate and submit the email through the shared API module.
- * 3. Show generic success or actionable errors without exposing account existence.
+ * Prepares email recovery by code without invoking the legacy link endpoint.
+ * 1. Keep the email and feedback in screen state.
+ * 2. Validate the address locally and avoid claiming a code was sent.
+ * 3. Link to the shared code-entry screen for interface review.
  */
 export default function ForgotPasswordPage() {
-  // STEP 1: Keep the entered email and request feedback local to this screen.
+  // STEP 1: Keep the entered email and local feedback on this screen.
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [feedback, setFeedback] = useState<Feedback>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const submissionInFlight = useRef(false);
 
   /**
    * Saves the email draft and clears outdated feedback.
@@ -37,14 +35,12 @@ export default function ForgotPasswordPage() {
   }
 
   /**
-   * Submits one valid email and reports the server's result.
-   * 1. Reject overlapping requests and invalid addresses.
-   * 2. Request a reset link through the shared API module.
-   * 3. Show success or field and connection errors, then restore the form.
+   * Checks the email without contacting the old link-sending endpoint.
+   * 1. Show field feedback for an invalid address.
+   * 2. Explain that code delivery will be connected in a later task.
    */
-  async function handleSendResetLink() {
-    // STEP 1: Stop duplicate taps and keep invalid addresses on the form.
-    if (submissionInFlight.current) return;
+  function handleSendRecoveryCode() {
+    // STEP 1: Keep invalid addresses on the form.
     const normalizedEmail = email.trim();
     if (!/^\S+@\S+\.\S+$/.test(normalizedEmail) || normalizedEmail.length > 254) {
       setError('Enter a valid email address.');
@@ -52,37 +48,19 @@ export default function ForgotPasswordPage() {
       return;
     }
 
-    // STEP 2: Show progress until the server accepts or rejects the request.
-    submissionInFlight.current = true;
-    setIsSubmitting(true);
+    // STEP 2: Do not imply delivery before the code API is available.
     setError('');
-    setFeedback(null);
-    try {
-      await requestPasswordReset(normalizedEmail);
-      // NOTE: The server returns the same success response for unknown addresses.
-      setFeedback({ kind: 'success', message: 'If this email is registered, a password reset link has been sent to your inbox.' });
-    } catch (requestError) {
-      // STEP 3: Show server field errors and connection failures without claiming delivery.
-      if (requestError instanceof ApiRequestError) {
-        setError(requestError.fieldErrors.email ?? '');
-        setFeedback({ kind: 'error', message: requestError.message });
-      } else {
-        setFeedback({ kind: 'error', message: 'Could not request a reset link. Please try again.' });
-      }
-    } finally {
-      submissionInFlight.current = false;
-      setIsSubmitting(false);
-    }
+    setFeedback({ kind: 'error', message: 'Recovery code delivery is not available yet.' });
   }
 
-  // STEP 3: Render the page with the shared authentication design.
+  // STEP 3: Keep the recovery pages reachable without sending a reset link.
   return (
     <ScrollView contentContainerStyle={authStyles.page} keyboardShouldPersistTaps="handled">
       <View style={authStyles.card}>
         <View style={authStyles.mark}><Text style={authStyles.markText}>A</Text></View>
         <Text style={authStyles.eyebrow}>ACCOUNT RECOVERY</Text>
         <Text style={authStyles.title}>Forgot your password?</Text>
-        <Text style={authStyles.subtitle}>Enter your email address and we will send you a password reset link.</Text>
+        <Text style={authStyles.subtitle}>Enter your email address to receive an 8-digit recovery code.</Text>
 
         <View style={authStyles.form}>
           <AuthInput
@@ -92,16 +70,27 @@ export default function ForgotPasswordPage() {
             error={error}
             autoComplete="email"
             keyboardType="email-address"
-            editable={!isSubmitting}
           />
 
-          <Pressable accessibilityRole="button" accessibilityState={{ disabled: isSubmitting, busy: isSubmitting }} disabled={isSubmitting} onPress={handleSendResetLink} style={({ pressed }) => [authStyles.button, isSubmitting && authStyles.buttonDisabled, pressed && authStyles.buttonPressed]}>
-            <Text style={authStyles.buttonText}>{isSubmitting ? 'Sending...' : 'Send Reset Link'}</Text>
+          <Pressable accessibilityRole="button" onPress={handleSendRecoveryCode} style={({ pressed }) => [authStyles.button, pressed && authStyles.buttonPressed]}>
+            <Text style={authStyles.buttonText}>Send recovery code</Text>
           </Pressable>
           {feedback ? <Text accessibilityRole="alert" style={[authStyles.result, feedback.kind === 'error' && authStyles.resultError]}>{feedback.message}</Text> : null}
+          <Link href="/verify-reset-code" style={styles.codeLink}>Enter a recovery code</Link>
         </View>
         <AuthNavigation current="forgot-password" />
       </View>
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  codeLink: {
+    color: authColors.accent,
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 20,
+    textAlign: 'center',
+    textDecorationLine: 'underline',
+  },
+});

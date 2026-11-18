@@ -10,6 +10,7 @@ type AuthInputProps = {
   autoCapitalize?: TextInputProps['autoCapitalize'];
   autoComplete?: TextInputProps['autoComplete'];
   keyboardType?: TextInputProps['keyboardType'];
+  maxLength?: TextInputProps['maxLength'];
   secureTextEntry?: boolean;
   editable?: boolean;
 };
@@ -22,6 +23,7 @@ export default function AuthInput({
   autoCapitalize = 'none',
   autoComplete,
   keyboardType = 'default',
+  maxLength,
   secureTextEntry = false,
   editable = true,
 }: AuthInputProps) {
@@ -36,6 +38,7 @@ export default function AuthInput({
         autoCorrect={false}
         editable={editable}
         keyboardType={keyboardType}
+        maxLength={maxLength}
         onChangeText={onChangeText}
         placeholder={label}
         placeholderTextColor="#82958B"
