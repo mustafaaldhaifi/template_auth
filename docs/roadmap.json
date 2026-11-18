@@ -58,7 +58,7 @@
         {
             "version": "0.2.0",
             "title": "Connect all account screens to the backend",
-            "status": "in_progress",
+            "status": "ready_for_review",
             "tasks": [
                 {
                     "id": "create-users-table",
@@ -270,7 +270,7 @@
                     "version": "0.1.12",
                     "type": "frontend",
                     "changeType": "update",
-                    "done": false
+                    "done": true
                 }
             ]
         }

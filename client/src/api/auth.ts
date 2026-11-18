@@ -29,3 +29,12 @@ export function getCurrentUser(): Promise<CurrentUser> {
     credentials: 'include',
   });
 }
+
+/** Requests a reset link without exposing whether the email has an account. */
+export function requestPasswordReset(email: string): Promise<void> {
+  return apiRequest<void>('/api/auth/forgot-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+}
