@@ -277,7 +277,7 @@
         {
             "version": "0.3.0",
             "title": "Recover an account with an eight-digit email code",
-            "status": "in_progress",
+            "status": "ready_for_review",
             "tasks": [
                 {
                     "id": "shared-recovery-code-screen",
@@ -377,7 +377,7 @@
                     "version": "0.2.4",
                     "type": "frontend",
                     "changeType": "update",
-                    "done": false,
+                    "done": true,
                     "verification": "On web, Android, and iOS, a registered user receives a code, verifies it, changes the password, then signs in manually with the new password; invalid and expired codes show errors without limiting entry attempts."
                 }
             ]

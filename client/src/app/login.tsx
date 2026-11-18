@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import AuthInput from '../components/AuthInput';
 import AuthNavigation from '../components/AuthNavigation';
@@ -49,6 +49,7 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submissionInFlight = useRef(false);
   const router = useRouter();
+  const { recovered } = useLocalSearchParams<{ recovered?: string }>();
 
   /**
    * Updates a field and clears feedback that may no longer apply.
@@ -112,6 +113,11 @@ export default function LoginPage() {
         <Text style={authStyles.eyebrow}>WELCOME BACK</Text>
         <Text style={authStyles.title}>Log in to your account</Text>
         <Text style={authStyles.subtitle}>Enter your email and password to continue.</Text>
+        {recovered === '1' && !result ? (
+          <Text accessibilityRole="alert" style={authStyles.result}>
+            Password updated. Sign in with your new password.
+          </Text>
+        ) : null}
 
         <View style={authStyles.form}>
           <AuthInput

@@ -1,7 +1,10 @@
-import { useState } from 'react';
-import { Link } from 'expo-router';
+import { useRef, useState } from 'react';
+import { Link, useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ApiRequestError } from '../api/client';
+import { saveRecoveredPassword } from '../api/passwordRecovery';
 import AuthInput from '../components/AuthInput';
+import { useRecoveryFlow } from '../features/passwordRecovery/RecoveryFlowContext';
 import { authColors } from '../theme/authColors';
 import { authStyles } from '../theme/authStyles';
 
@@ -32,16 +35,20 @@ function validatePasswords(values: PasswordValues): PasswordErrors {
 }
 
 /**
- * Presents a password reset form before backend submission is connected.
- * 1. Track both password fields and local feedback.
- * 2. Validate the draft without changing the account password.
- * 3. Render the shared authentication layout and a way back to code entry.
+ * Saves a new password after the email code has been verified.
+ * 1. Track password fields and request progress.
+ * 2. Validate and submit the password with the in-memory grant.
+ * 3. Return to login only after the server confirms the change.
  */
 export default function ResetPasswordPage() {
   // STEP 1: Keep password drafts only in this screen's state.
   const [values, setValues] = useState<PasswordValues>(initialValues);
   const [errors, setErrors] = useState<PasswordErrors>({});
   const [feedback, setFeedback] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submissionInFlight = useRef(false);
+  const router = useRouter();
+  const recovery = useRecoveryFlow();
 
   /** Saves a field edit and clears feedback that described its old value. */
   function updateField(field: PasswordField, value: string) {
@@ -54,13 +61,16 @@ export default function ResetPasswordPage() {
     setFeedback('');
   }
 
+  // STEP 2: Submit only after local validation and server-side code verification.
   /**
-   * Validates the draft without claiming the password was saved.
-   * 1. Show field errors for invalid values.
-   * 2. Explain that saving awaits the recovery API integration.
+   * Submits the new password using a verified grant.
+   * 1. Reject duplicate or invalid submissions.
+   * 2. Save the password and navigate to login after success.
+   * 3. Keep the form available when the request fails.
    */
-  function handleSavePassword() {
-    // STEP 1: Keep invalid values on the form for correction.
+  async function handleSavePassword() {
+    // STEP 1: Require a grant and valid passwords before submitting.
+    if (submissionInFlight.current || !recovery.token) return;
     const nextErrors = validatePasswords(values);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
@@ -68,8 +78,29 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    // STEP 2: Do not navigate to login until the server changes the password.
-    setFeedback('Password saving is not available yet.');
+    // STEP 2: Do not navigate until the server changes the password.
+    submissionInFlight.current = true;
+    setIsSubmitting(true);
+    setFeedback('');
+    try {
+      await saveRecoveredPassword(recovery.token, values.password, values.confirmPassword);
+      recovery.clear();
+      router.replace({ pathname: '/login', params: { recovered: '1' } });
+    } catch (requestError) {
+      // STEP 3: Preserve user input and show server field errors for correction.
+      if (requestError instanceof ApiRequestError) {
+        setErrors({
+          password: requestError.fieldErrors.password,
+          confirmPassword: requestError.fieldErrors.confirmPassword,
+        });
+        setFeedback(requestError.message);
+      } else {
+        setFeedback('Could not save your new password. Please try again.');
+      }
+    } finally {
+      submissionInFlight.current = false;
+      setIsSubmitting(false);
+    }
   }
 
   // STEP 3: Keep the form responsive on web, Android, and iOS.
@@ -79,9 +110,11 @@ export default function ResetPasswordPage() {
         <View style={authStyles.mark}><Text style={authStyles.markText}>A</Text></View>
         <Text style={authStyles.eyebrow}>ACCOUNT RECOVERY</Text>
         <Text style={authStyles.title}>Set a new password</Text>
-        <Text style={authStyles.subtitle}>Choose a new password and confirm it below.</Text>
+        <Text style={authStyles.subtitle}>
+          {recovery.token ? 'Choose a new password and confirm it below.' : 'Verify a recovery code before setting a new password.'}
+        </Text>
 
-        <View style={authStyles.form}>
+        {recovery.token ? <View style={authStyles.form}>
           <AuthInput
             label="New password"
             value={values.password}
@@ -89,6 +122,7 @@ export default function ResetPasswordPage() {
             error={errors.password}
             autoComplete="new-password"
             secureTextEntry
+            editable={!isSubmitting}
           />
           <AuthInput
             label="Confirm new password"
@@ -97,20 +131,23 @@ export default function ResetPasswordPage() {
             error={errors.confirmPassword}
             autoComplete="new-password"
             secureTextEntry
+            editable={!isSubmitting}
           />
 
           <Pressable
             accessibilityRole="button"
+            accessibilityState={{ disabled: isSubmitting, busy: isSubmitting }}
+            disabled={isSubmitting}
             onPress={handleSavePassword}
-            style={({ pressed }) => [authStyles.button, pressed && authStyles.buttonPressed]}
+            style={({ pressed }) => [authStyles.button, isSubmitting && authStyles.buttonDisabled, pressed && authStyles.buttonPressed]}
           >
-            <Text style={authStyles.buttonText}>Save new password</Text>
+            <Text style={authStyles.buttonText}>{isSubmitting ? 'Saving...' : 'Save new password'}</Text>
           </Pressable>
           {feedback ? (
             <Text accessibilityRole="alert" style={[authStyles.result, authStyles.resultError]}>{feedback}</Text>
           ) : null}
-        </View>
-        <Link href="/verify-reset-code" style={styles.backLink}>Back to verification code</Link>
+        </View> : null}
+        <Link href="/forgot-password" style={styles.backLink}>Request another code</Link>
       </View>
     </ScrollView>
   );

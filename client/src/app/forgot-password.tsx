@@ -1,59 +1,77 @@
-import { useState } from 'react';
-import { Link } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ApiRequestError } from '../api/client';
+import { requestPasswordRecoveryCode } from '../api/passwordRecovery';
 import AuthInput from '../components/AuthInput';
 import AuthNavigation from '../components/AuthNavigation';
-import { authColors } from '../theme/authColors';
+import { useRecoveryFlow } from '../features/passwordRecovery/RecoveryFlowContext';
 import { authStyles } from '../theme/authStyles';
 
-type Feedback = { message: string; kind: 'success' | 'error' } | null;
-
 /**
- * Prepares email recovery by code without invoking the legacy link endpoint.
- * 1. Keep the email and feedback in screen state.
- * 2. Validate the address locally and avoid claiming a code was sent.
- * 3. Link to the shared code-entry screen for interface review.
+ * Requests an emailed recovery code on web, Android, and iOS.
+ * 1. Validate the address and prevent overlapping submissions.
+ * 2. Send the request through the shared API client.
+ * 3. Continue to code entry or show field and request errors.
  */
 export default function ForgotPasswordPage() {
-  // STEP 1: Keep the entered email and local feedback on this screen.
+  // STEP 1: Track the current address and request status.
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
-  const [feedback, setFeedback] = useState<Feedback>(null);
+  const [result, setResult] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submissionInFlight = useRef(false);
+  const router = useRouter();
+  const recovery = useRecoveryFlow();
 
-  /**
-   * Saves the email draft and clears outdated feedback.
-   * 1. Update the email value.
-   * 2. Clear the previous validation error and result.
-   */
+  /** Clears feedback that no longer describes the edited address. */
   function updateEmail(value: string) {
-    // STEP 1: Save the current draft.
     setEmail(value);
-
-    // STEP 2: Clear feedback that described the previous draft.
     setError('');
-    setFeedback(null);
+    setResult('');
   }
 
+  // STEP 2: Submit only validated addresses through the recovery API.
   /**
-   * Checks the email without contacting the old link-sending endpoint.
-   * 1. Show field feedback for an invalid address.
-   * 2. Explain that code delivery will be connected in a later task.
+   * Sends one code request and advances only after the server responds.
+   * 1. Reject duplicate requests and invalid addresses.
+   * 2. Remember the normalized address and open code entry on success.
+   * 3. Keep the form available with server feedback on failure.
    */
-  function handleSendRecoveryCode() {
-    // STEP 1: Keep invalid addresses on the form.
-    const normalizedEmail = email.trim();
+  async function handleSendRecoveryCode() {
+    // STEP 1: Check the draft before contacting the server.
+    if (submissionInFlight.current) return;
+    const normalizedEmail = email.trim().toLowerCase();
     if (!/^\S+@\S+\.\S+$/.test(normalizedEmail) || normalizedEmail.length > 254) {
       setError('Enter a valid email address.');
-      setFeedback(null);
+      setResult('Please correct the highlighted field.');
       return;
     }
 
-    // STEP 2: Do not imply delivery before the code API is available.
+    // STEP 2: The response is intentionally the same for registered and unknown addresses.
+    submissionInFlight.current = true;
+    setIsSubmitting(true);
     setError('');
-    setFeedback({ kind: 'error', message: 'Recovery code delivery is not available yet.' });
+    setResult('');
+    try {
+      await requestPasswordRecoveryCode(normalizedEmail);
+      recovery.begin(normalizedEmail);
+      router.replace('/verify-reset-code');
+    } catch (requestError) {
+      // STEP 3: Associate field errors with the email input.
+      if (requestError instanceof ApiRequestError) {
+        setError(requestError.fieldErrors.email ?? '');
+        setResult(requestError.message);
+      } else {
+        setResult('Could not request a recovery code. Please try again.');
+      }
+    } finally {
+      submissionInFlight.current = false;
+      setIsSubmitting(false);
+    }
   }
 
-  // STEP 3: Keep the recovery pages reachable without sending a reset link.
+  // STEP 3: Keep request and field feedback on the same form.
   return (
     <ScrollView contentContainerStyle={authStyles.page} keyboardShouldPersistTaps="handled">
       <View style={authStyles.card}>
@@ -70,27 +88,22 @@ export default function ForgotPasswordPage() {
             error={error}
             autoComplete="email"
             keyboardType="email-address"
+            editable={!isSubmitting}
           />
 
-          <Pressable accessibilityRole="button" onPress={handleSendRecoveryCode} style={({ pressed }) => [authStyles.button, pressed && authStyles.buttonPressed]}>
-            <Text style={authStyles.buttonText}>Send recovery code</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isSubmitting, busy: isSubmitting }}
+            disabled={isSubmitting}
+            onPress={handleSendRecoveryCode}
+            style={({ pressed }) => [authStyles.button, isSubmitting && authStyles.buttonDisabled, pressed && authStyles.buttonPressed]}
+          >
+            <Text style={authStyles.buttonText}>{isSubmitting ? 'Sending...' : 'Send recovery code'}</Text>
           </Pressable>
-          {feedback ? <Text accessibilityRole="alert" style={[authStyles.result, feedback.kind === 'error' && authStyles.resultError]}>{feedback.message}</Text> : null}
-          <Link href="/verify-reset-code" style={styles.codeLink}>Enter a recovery code</Link>
+          {result ? <Text accessibilityRole="alert" style={[authStyles.result, authStyles.resultError]}>{result}</Text> : null}
         </View>
         <AuthNavigation current="forgot-password" />
       </View>
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  codeLink: {
-    color: authColors.accent,
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: 20,
-    textAlign: 'center',
-    textDecorationLine: 'underline',
-  },
-});
