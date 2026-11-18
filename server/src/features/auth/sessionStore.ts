@@ -35,6 +35,13 @@ export function invalidateSession(token: string | null): void {
   if (token) sessions.delete(tokenKey(token));
 }
 
+/** Removes this user's local sessions after their password is reset. */
+export function invalidateUserSessions(userId: string): void {
+  for (const [key, session] of sessions) {
+    if (session.userId === userId) sessions.delete(key);
+  }
+}
+
 /** Returns the user for a live session, removing expired entries on access. */
 export function getSessionUserId(token: string | null): string | null {
   if (!token) return null;

@@ -211,11 +211,58 @@
                 },
                 {
                     "id": "create-password-reset-endpoints",
-                    "title": "Add POST /api/auth/forgot-password to request a reset link and POST /api/auth/reset-password to set a new password",
+                    "title": "Store one-time password reset tokens, email reset links through configured SMTP, and add POST /api/auth/forgot-password and POST /api/auth/reset-password",
                     "version": "0.1.11",
                     "type": "backend",
                     "changeType": "add",
-                    "done": false
+                    "done": true,
+                    "structure": {
+                        "table": "password_reset_tokens",
+                        "columns": [
+                            {
+                                "name": "token_hash",
+                                "type": "text",
+                                "nullable": false,
+                                "primaryKey": true
+                            },
+                            {
+                                "name": "user_id",
+                                "type": "uuid",
+                                "nullable": false,
+                                "references": {
+                                    "table": "users",
+                                    "column": "id",
+                                    "onDelete": "cascade"
+                                }
+                            },
+                            {
+                                "name": "expires_at",
+                                "type": "timestamptz",
+                                "nullable": false
+                            },
+                            {
+                                "name": "consumed_at",
+                                "type": "timestamptz",
+                                "nullable": true,
+                                "default": null
+                            },
+                            {
+                                "name": "created_at",
+                                "type": "timestamptz",
+                                "nullable": false,
+                                "default": "now()"
+                            }
+                        ],
+                        "constraints": [
+                            "length(token_hash) = 64",
+                            "expires_at > created_at"
+                        ],
+                        "indexes": [
+                            {
+                                "columns": ["user_id", "created_at DESC"]
+                            }
+                        ]
+                    }
                 },
                 {
                     "id": "connect-forgot-password-screen",
@@ -223,14 +270,6 @@
                     "version": "0.1.12",
                     "type": "frontend",
                     "changeType": "update",
-                    "done": false
-                },
-                {
-                    "id": "add-reset-password-screen",
-                    "title": "Build /reset-password, open it from the reset link, and connect the new password form to the reset API",
-                    "version": "0.1.13",
-                    "type": "frontend",
-                    "changeType": "add",
                     "done": false
                 }
             ]

@@ -19,6 +19,13 @@ interface DatabaseTables {
     password_hash: string;
     created_at: Generated<Date>;
   };
+  password_reset_tokens: {
+    token_hash: string;
+    user_id: string;
+    expires_at: Date;
+    consumed_at: Date | null;
+    created_at: Generated<Date>;
+  };
 }
 
 let database: Kysely<DatabaseTables> | undefined;

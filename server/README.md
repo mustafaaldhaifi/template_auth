@@ -42,6 +42,22 @@ Account creation writes `users`, `user_emails`, and `user_passwords` in one tran
 
 Sessions live in this server process and are cleared when it restarts. This is the local session requested for this task; account data and password hashes remain in PostgreSQL.
 
+## Password reset API
+
+Apply the approved token table migration to the development database using a direct, non-pooled PostgreSQL connection:
+
+```powershell
+psql $env:DATABASE_URL_UNPOOLED -f .\migrations\0.1.11_create_password_reset_tokens.sql
+```
+
+Set `SMTP_HOST`, `SMTP_FROM`, and `PASSWORD_RESET_URL` in the server environment. `SMTP_PORT` defaults to `587`; set `SMTP_USER` and `SMTP_PASS` together when the SMTP server requires authentication. `PASSWORD_RESET_URL` must be a full URL for the client page that accepts the `token` query parameter. It must use HTTPS outside local development. The reset page is not part of backend task `0.1.11` and is not created by these endpoints.
+
+`POST /api/auth/forgot-password` accepts `{ "email": "..." }`. It returns `204` with no body for both registered and unregistered email addresses, and sends at most one link per account per minute. Invalid input returns `400` with `VALIDATION_ERROR` and `fieldErrors.email`; malformed JSON returns `400` with `INVALID_JSON`. Missing delivery configuration or database failures return `500` with `INTERNAL_ERROR`. Mail delivery failures are logged and still receive the generic `204` response so the API does not reveal account existence.
+
+`POST /api/auth/reset-password` accepts `{ "token": "...", "password": "...", "confirmPassword": "..." }`. Passwords must be 8–128 characters and the confirmation must match. Success returns `204` with no body and clears the current browser's session cookie. Invalid fields return `400` with `VALIDATION_ERROR` and `fieldErrors`; a missing, expired, or used token returns `400` with `INVALID_RESET_TOKEN`; unexpected failures return `500` with `INTERNAL_ERROR`.
+
+Reset links expire after 30 minutes. The database stores only a SHA-256 token digest. Consuming a token, updating the password, and invalidating other reset links happen in one transaction. The server also invalidates the user's sessions in its current process. The local session store must be replaced before running this authentication flow across multiple server processes.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 ## Learn More
