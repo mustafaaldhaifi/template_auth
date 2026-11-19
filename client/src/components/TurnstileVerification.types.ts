@@ -1,4 +1,5 @@
 export type TurnstileVerificationProps = {
+  action: 'login' | 'signup' | 'forgot_password';
   onTokenChange: (token: string) => void;
 };
 

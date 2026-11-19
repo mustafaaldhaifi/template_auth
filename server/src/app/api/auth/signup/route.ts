@@ -2,6 +2,7 @@ import { authCorsHeaders } from '@/features/auth/authCors';
 import { DeviceIssueLimitError } from '@/features/auth/deviceRepository';
 import { resolveOrCreateDevice, withDeviceCookie, type DeviceIdentity } from '@/features/auth/deviceStore';
 import { hashPassword } from '@/features/auth/passwordHash';
+import { verifyAuthRequest } from '@/features/auth/requestVerification';
 import { createSignupAccount } from '@/features/auth/signupRepository';
 import { validateSignupInput } from '@/features/auth/signupValidation';
 
@@ -12,7 +13,7 @@ export function OPTIONS(request: Request): Response {
 /**
  * Validates a sign-up request and creates its account records.
  * 1. Parse and validate the JSON body, returning field errors when needed.
- * 2. Issue or reuse a device, even if account creation later fails.
+ * 2. Verify the web proof before issuing or reusing a device.
  * 3. Hash the password and create all account rows in one transaction.
  * 4. Return account data or a stable duplicate-email/server error response.
  */
@@ -42,13 +43,19 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  // STEP 2: A valid first request gets a device whether signup succeeds or fails.
+  // STEP 2: Do not create device, IP, or account records for an unverified request.
+  const verification = await verifyAuthRequest(body, 'signup');
+  if (!verification.success) {
+    return Response.json({ error: verification.error }, { status: verification.status, headers });
+  }
+
+  // STEP 3: A verified first request gets a device whether signup succeeds or fails.
   const { firstName, lastName, email, password } = validation.value;
   let device: DeviceIdentity | null = null;
   try {
     device = await resolveOrCreateDevice(request);
 
-    // STEP 3: Keep all account writes in their existing transaction.
+    // STEP 4: Keep all account writes in their existing transaction.
     const passwordHash = await hashPassword(password);
     const id = await createSignupAccount({ firstName, lastName, email, passwordHash });
     return withDeviceCookie(Response.json(
@@ -62,7 +69,7 @@ export async function POST(request: Request): Promise<Response> {
         { status: 429, headers },
       );
     }
-    // STEP 4: Translate the email constraint without exposing database details.
+    // STEP 5: Translate the email constraint without exposing database details.
     if (error && typeof error === 'object' && 'code' in error &&
       'constraint' in error && error.code === '23505' &&
       error.constraint === 'user_emails_email_key') {

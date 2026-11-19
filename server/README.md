@@ -16,6 +16,27 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Turnstile verification for authentication
+
+Set `TURNSTILE_SECRET_KEY` on the server to the private key for the web widget, and set
+`TURNSTILE_ALLOWED_HOSTNAMES` to a comma-separated list of exact hostnames, such as
+`template-auth-web.vercel.app`. Keep the secret only on the server. The web client uses
+the matching public `EXPO_PUBLIC_TURNSTILE_SITE_KEY`.
+
+The existing `POST /api/auth/login`, `POST /api/auth/signup`, and
+`POST /api/auth/forgot-password` requests now require `verificationMethod: "turnstile"`
+and `verificationToken` in addition to their existing fields. The widget sets an
+action of `login`, `signup`, or `forgot_password` for the matching request. The server
+redeems the token with Cloudflare and checks both its action and hostname before any
+device, IP, account, or recovery data access. Successful response formats remain the
+same. Missing or invalid proof returns `400` with the standard `error` object and a
+field error; a missing verifier setting or Cloudflare outage returns retryable `503`
+with `VERIFICATION_UNAVAILABLE`. Native verification methods are not yet implemented.
+
+For local UI-only testing, Cloudflare's public test site key works on `localhost`.
+It cannot validate against a real server secret or prove the expected hostname and
+action, so use the real widget on an allowed deployed hostname for an end-to-end test.
+
 ## Sign-up API
 
 Set `DATABASE_URL` to a PostgreSQL connection string before starting the server. For the linked Neon development branch in PowerShell:
@@ -48,7 +69,7 @@ psql $env:DATABASE_URL_UNPOOLED -f .\migrations\0.3.5_create_auth_sessions.sql
 psql $env:DATABASE_URL_UNPOOLED -f .\migrations\0.3.6_create_security_blocks.sql
 ```
 
-Apply each migration only once. The server now issues an `HttpOnly` `auth_device` cookie on the first well-formed login, sign-up, or password-recovery request, including unsuccessful attempts. Later requests reuse the same device. Only successful login creates a seven-day `auth_session` cookie; both cookies must match a live database session to read protected account data. The raw tokens are not stored in PostgreSQL. The server records Next.js's forwarded IP during local development and Vercel's forwarded IP in production. Local forwarding is not a security boundary because callers can spoof it; the production device-creation limit uses Vercel's overwritten header. A single trusted IP can register at most 30 new devices per hour.
+Apply each migration only once. The server now issues an `HttpOnly` `auth_device` cookie on the first well-formed, Turnstile-verified login, sign-up, or password-recovery request, including unsuccessful credential attempts. Later verified requests reuse the same device. Only successful login creates a seven-day `auth_session` cookie; both cookies must match a live database session to read protected account data. The raw tokens are not stored in PostgreSQL. The server records Next.js's forwarded IP during local development and Vercel's forwarded IP in production. Local forwarding is not a security boundary because callers can spoof it; the production device-creation limit uses Vercel's overwritten header. A single trusted IP can register at most 30 new devices per hour.
 
 `POST /api/auth/login` accepts JSON string fields `email` and `password`. A successful request returns `200` with `{ "data": { "id", "firstName", "lastName", "email" } }` and an `HttpOnly` `auth_session` cookie valid for seven days. Invalid fields return `400` with `VALIDATION_ERROR` and `fieldErrors`; wrong credentials return `401` with `INVALID_CREDENTIALS`. Malformed JSON returns `400` with `INVALID_JSON`. Excessive anonymous device creation from one trusted IP returns `429` with `TOO_MANY_REQUESTS`. Unexpected server failures return `500` with `INTERNAL_ERROR`.
 

@@ -6,6 +6,7 @@ import type { TurnstileVerificationHandle, TurnstileVerificationProps } from './
 type TurnstileApi = {
   render: (container: HTMLElement, options: {
     sitekey: string;
+    action: TurnstileVerificationProps['action'];
     size: 'compact';
     callback: (token: string) => void;
     'expired-callback': () => void;
@@ -82,7 +83,7 @@ function loadTurnstile(): Promise<TurnstileApi> {
  * 3. Reset a used proof before another form submission.
  */
 const TurnstileVerification = forwardRef<TurnstileVerificationHandle, TurnstileVerificationProps>(
-  function TurnstileVerification({ onTokenChange }, ref) {
+  function TurnstileVerification({ action, onTokenChange }, ref) {
     const containerRef = useRef<HTMLDivElement>(null);
     const widgetRef = useRef<string | null>(null);
     const callbackRef = useRef(onTokenChange);
@@ -99,6 +100,7 @@ const TurnstileVerification = forwardRef<TurnstileVerificationHandle, TurnstileV
         try {
           widgetRef.current = api.render(containerRef.current, {
             sitekey: siteKey,
+            action,
             // NOTE: Compact fits narrow phone browsers; flexible has a 300px minimum width.
             size: 'compact',
             callback: (token) => {
@@ -135,7 +137,7 @@ const TurnstileVerification = forwardRef<TurnstileVerificationHandle, TurnstileV
           widgetRef.current = null;
         }
       };
-    }, [siteKey]);
+    }, [action, siteKey]);
 
     // STEP 3: A submitted proof is single-use, including when the request fails.
     useImperativeHandle(ref, () => ({

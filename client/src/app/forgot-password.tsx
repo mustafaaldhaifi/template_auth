@@ -102,7 +102,7 @@ export default function ForgotPasswordPage() {
             editable={!isSubmitting}
           />
 
-          <TurnstileVerification ref={verificationRef} onTokenChange={setVerificationToken} />
+          <TurnstileVerification action="forgot_password" ref={verificationRef} onTokenChange={setVerificationToken} />
 
           <Pressable
             accessibilityRole="button"

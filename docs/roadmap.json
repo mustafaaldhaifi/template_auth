@@ -785,7 +785,7 @@
                     "version": "0.3.11",
                     "type": "backend",
                     "changeType": "update",
-                    "done": false,
+                    "done": true,
                     "verification": "For each existing auth endpoint, a missing, invalid, expired, reused, or wrong-action Turnstile token returns the standard field error and creates or updates no device, IP link, account, recovery code, or session. A valid token proceeds through the existing response flow. A verifier outage returns a retryable service error without a device write. Native clients remain unsupported on these protected requests until their own verification methods are added."
                 },
                 {

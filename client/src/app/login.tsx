@@ -150,7 +150,7 @@ export default function LoginPage() {
             editable={!isSubmitting}
           />
 
-          <TurnstileVerification ref={verificationRef} onTokenChange={setVerificationToken} />
+          <TurnstileVerification action="login" ref={verificationRef} onTokenChange={setVerificationToken} />
 
           <Pressable accessibilityRole="button" accessibilityState={{ disabled: isSubmitting || (Platform.OS === 'web' && !verificationToken), busy: isSubmitting }} disabled={isSubmitting || (Platform.OS === 'web' && !verificationToken)} onPress={handleSubmit} style={({ pressed }) => [authStyles.button, (isSubmitting || (Platform.OS === 'web' && !verificationToken)) && authStyles.buttonDisabled, pressed && authStyles.buttonPressed]}>
             <Text style={authStyles.buttonText}>{isSubmitting ? 'Logging in...' : 'Log in'}</Text>

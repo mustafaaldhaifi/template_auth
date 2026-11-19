@@ -6,6 +6,7 @@ import type { LoginAccount } from '@/features/auth/loginRepository';
 import { findLoginAccount } from '@/features/auth/loginRepository';
 import { hashPassword } from '@/features/auth/passwordHash';
 import { verifyPassword } from '@/features/auth/passwordVerify';
+import { verifyAuthRequest } from '@/features/auth/requestVerification';
 import { createSession, sessionCookie } from '@/features/auth/sessionStore';
 
 type LoginInput = { email: string; password: string };
@@ -93,7 +94,7 @@ export function OPTIONS(request: Request): Response {
 /**
  * Validates credentials and creates a persistent device-bound session.
  * 1. Parse the request and return clear input errors.
- * 2. Reuse or issue a device before checking the submitted credentials.
+ * 2. Verify the web proof before looking up or issuing a device.
  * 3. Authenticate without exposing account existence and create a session only on success.
  */
 export async function POST(request: Request): Promise<Response> {
@@ -110,13 +111,18 @@ export async function POST(request: Request): Promise<Response> {
     return loginError(400, 'VALIDATION_ERROR', 'Please correct the highlighted fields.',
       headers, validation.fieldErrors);
   }
+  // STEP 2: Reject invalid or unavailable verification before touching device storage.
+  const verification = await verifyAuthRequest(body, 'login');
+  if (!verification.success) {
+    return Response.json({ error: verification.error }, { status: verification.status, headers });
+  }
 
-  // STEP 2: A failed but well-formed first attempt still receives a device cookie.
+  // STEP 3: A verified but failed first attempt still receives a device cookie.
   let device: DeviceIdentity | null = null;
   try {
     device = await resolveOrCreateDevice(request);
 
-    // STEP 3: Use a generic response for missing accounts and wrong passwords.
+    // STEP 4: Use a generic response for missing accounts and wrong passwords.
     const account = await authenticateLogin(validation.value);
     if (!account) {
       return withDeviceCookie(loginError(401, 'INVALID_CREDENTIALS', 'Email or password is incorrect.', headers), device);

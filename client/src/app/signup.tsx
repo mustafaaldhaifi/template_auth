@@ -161,7 +161,7 @@ export default function SignupPage() {
           <AuthInput label="Password" value={values.password} onChangeText={(text) => updateField('password', text)} error={errors.password} autoComplete="new-password" secureTextEntry editable={!isSubmitting} />
           <AuthInput label="Confirm password" value={values.confirmPassword} onChangeText={(text) => updateField('confirmPassword', text)} error={errors.confirmPassword} autoComplete="new-password" secureTextEntry editable={!isSubmitting} />
 
-          <TurnstileVerification ref={verificationRef} onTokenChange={setVerificationToken} />
+          <TurnstileVerification action="signup" ref={verificationRef} onTokenChange={setVerificationToken} />
 
           <Pressable accessibilityRole="button" accessibilityState={{ disabled: isSubmitting || (Platform.OS === 'web' && !verificationToken), busy: isSubmitting }} disabled={isSubmitting || (Platform.OS === 'web' && !verificationToken)} onPress={handleSubmit} style={({ pressed }) => [authStyles.button, (isSubmitting || (Platform.OS === 'web' && !verificationToken)) && authStyles.buttonDisabled, pressed && authStyles.buttonPressed]}>
             <Text style={authStyles.buttonText}>{isSubmitting ? 'Creating account...' : 'Create account'}</Text>

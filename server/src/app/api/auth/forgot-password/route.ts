@@ -5,6 +5,7 @@ import { getPasswordResetMailConfig, sendPasswordResetCodeEmail } from '@/featur
 import { deletePasswordResetCode, findPasswordResetAccount, issuePasswordResetCode } from '@/features/auth/passwordResetRepository';
 import { createPasswordResetCode, createPasswordResetCodeSalt, getPasswordResetCodeSecret, hashPasswordResetCode, passwordResetLifetimeMinutes } from '@/features/auth/passwordResetToken';
 import { validateForgotPasswordInput } from '@/features/auth/passwordResetValidation';
+import { verifyAuthRequest } from '@/features/auth/requestVerification';
 
 export function OPTIONS(request: Request): Response {
   return new Response(null, { status: 204, headers: authCorsHeaders(request) });
@@ -25,7 +26,7 @@ function requestError(
 /**
  * Requests a one-time recovery code without revealing account existence.
  * 1. Parse and validate the submitted email.
- * 2. Issue or reuse a device before looking up the email.
+ * 2. Verify the web proof before issuing or reusing a device.
  * 3. Create and store a short-lived code digest for an eligible account.
  * 4. Email the code and return the same response for known and unknown emails.
  */
@@ -45,12 +46,18 @@ export async function POST(request: Request): Promise<Response> {
       headers, validation.fieldErrors);
   }
 
+  // STEP 2: An invalid proof must not reach device or recovery storage.
+  const verification = await verifyAuthRequest(body, 'forgot_password');
+  if (!verification.success) {
+    return Response.json({ error: verification.error }, { status: verification.status, headers });
+  }
+
   let device: DeviceIdentity | null = null;
   try {
-    // STEP 2: Unknown emails and repeated requests still reuse the same device.
+    // STEP 3: Unknown emails and repeated verified requests still reuse the same device.
     device = await resolveOrCreateDevice(request);
 
-    // STEP 3: Validate configuration for every request before looking up an email.
+    // STEP 4: Validate configuration for every request before looking up an email.
     const mailConfig = getPasswordResetMailConfig();
     const secret = getPasswordResetCodeSecret();
     const account = await findPasswordResetAccount(validation.value.email);
@@ -63,7 +70,7 @@ export async function POST(request: Request): Promise<Response> {
     const issued = await issuePasswordResetCode(account.userId, codeHash, salt, expiresAt);
     if (!issued) return withDeviceCookie(new Response(null, { status: 204, headers }), device);
 
-    // STEP 4: Mail failures are logged but never disclose whether an account exists.
+    // STEP 5: Mail failures are logged but never disclose whether an account exists.
     try {
       await sendPasswordResetCodeEmail(mailConfig, account.email, code);
     } catch (error) {
