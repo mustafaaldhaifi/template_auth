@@ -677,7 +677,7 @@
                     "version": "0.3.6",
                     "type": "backend",
                     "changeType": "add",
-                    "done": false,
+                    "done": true,
                     "verification": "Apply the migration and confirm a block targets exactly one existing IP, device, or session; invalid target combinations and empty reasons are rejected. Confirm expiry and revocation timestamps can be recorded.",
                     "structure": {
                         "table": "security_blocks",
@@ -763,12 +763,12 @@
                 },
                 {
                     "id": "persist-device-bound-login-sessions",
-                    "title": "Issue server-generated device and session tokens in secure cookies after successful login, persist their hashes, check the device-session match on protected requests, and revoke sessions on logout and password reset using existing routes",
+                    "title": "Issue and persist one server-generated device token on the first well-formed request to the existing login, signup, or forgot-password endpoint even when authentication fails or the email is unknown; reuse it on later requests, record the observed IP, guard against mass anonymous device creation, and create a device-bound session only after successful login without adding routes",
                     "version": "0.3.7",
                     "type": "backend",
                     "changeType": "update",
                     "done": false,
-                    "verification": "On web, Android, and iOS, sign in and restart the server: the session remains valid for the same device. Missing or mismatched device cookies return the user to login; logout and password reset invalidate sessions. Verify IP changes alone do not end the session."
+                    "verification": "Call each existing login, signup, and forgot-password endpoint with a first well-formed request and no device cookie, including failed credentials or an unknown recovery email: the response issues one device cookie and creates one device record. Repeat with that cookie and confirm no second device is created. A session is created only after successful login and survives a server restart; missing or mismatched device cookies invalidate access, while an IP change alone does not. Logout and password reset revoke sessions."
                 },
                 {
                     "id": "enforce-security-blocks",
@@ -781,12 +781,12 @@
                 },
                 {
                     "id": "connect-device-metadata-on-login",
-                    "title": "Send platform and available OS version and model through the shared login API client, and retain both server-issued cookies across app restarts on web, Android, and iOS",
+                    "title": "Send platform and available OS version and model through the shared login, signup, and forgot-password API calls, accept the server-issued device cookie on each flow, and retain device and session cookies across app restarts on web, Android, and iOS",
                     "version": "0.3.9",
                     "type": "frontend",
                     "changeType": "update",
                     "done": false,
-                    "verification": "On web, Android, and iOS, sign in, restart the app or browser and the server, and confirm the same account remains signed in. Check that an unavailable web hardware model is omitted and that logout requires a new login."
+                    "verification": "On web, Android, and iOS, begin with any of login, signup, or forgot-password and confirm later requests reuse the same device. Sign in, restart the app or browser and the server, and confirm the account remains signed in. An unavailable web hardware model is omitted, and logout requires a new login without creating a new device."
                 }
             ]
         }
