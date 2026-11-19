@@ -493,7 +493,7 @@
                     "version": "0.3.3",
                     "type": "backend",
                     "changeType": "add",
-                    "done": false,
+                    "done": true,
                     "verification": "Apply the migration and confirm that an IPv4 or IPv6 address can be recorded once, while a duplicate address is rejected.",
                     "structure": {
                         "table": "ips",
