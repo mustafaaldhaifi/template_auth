@@ -1,8 +1,10 @@
 import { useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import AuthInput from '../components/AuthInput';
 import AuthNavigation from '../components/AuthNavigation';
+import TurnstileVerification from '../components/TurnstileVerification';
+import type { TurnstileVerificationHandle } from '../components/TurnstileVerification.types';
 import { ApiRequestError } from '../api/client';
 import { login, type LoginValues } from '../api/auth';
 import { authStyles } from '../theme/authStyles';
@@ -38,7 +40,7 @@ function validateLogin(values: LoginValues): LoginErrors {
 /**
  * Presents the login form on web, Android, and iOS.
  * 1. Track credentials, field errors, and request progress.
- * 2. Validate and submit credentials through the shared API module.
+ * 2. Validate credentials and submit a web verification proof through the shared API module.
  * 3. Navigate to the dashboard on success or display the server error.
  */
 export default function LoginPage() {
@@ -47,6 +49,8 @@ export default function LoginPage() {
   const [errors, setErrors] = useState<LoginErrors>({});
   const [result, setResult] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [verificationToken, setVerificationToken] = useState('');
+  const verificationRef = useRef<TurnstileVerificationHandle>(null);
   const submissionInFlight = useRef(false);
   const router = useRouter();
   const { recovered } = useLocalSearchParams<{ recovered?: string }>();
@@ -71,9 +75,9 @@ export default function LoginPage() {
 
   /**
    * Submits one login request after local validation.
-   * 1. Reject duplicate or invalid submissions.
+   * 1. Reject duplicate, invalid, or unverified web submissions.
    * 2. Send credentials and navigate after the session is created.
-   * 3. Show errors and restore the form when the request fails.
+   * 3. Show errors and refresh the consumed web proof when the request ends.
    */
   async function handleSubmit() {
     // STEP 1: Keep an overlapping request from creating multiple sessions.
@@ -84,12 +88,18 @@ export default function LoginPage() {
       setResult('Please correct the highlighted fields.');
       return;
     }
+    if (Platform.OS === 'web' && !verificationToken) {
+      setResult('Complete the security check before logging in.');
+      return;
+    }
     // STEP 2: Move to the dashboard only after the server accepts credentials.
     submissionInFlight.current = true;
     setIsSubmitting(true);
     setResult('');
     try {
-      await login(values);
+      await login(values, Platform.OS === 'web'
+        ? { verificationToken, verificationMethod: 'turnstile' }
+        : undefined);
       router.replace('/dashboard');
     } catch (error) {
       // STEP 3: Keep the form available with the server's specific feedback.
@@ -100,6 +110,7 @@ export default function LoginPage() {
         setResult('Could not log in. Please try again.');
       }
     } finally {
+      verificationRef.current?.reset();
       submissionInFlight.current = false;
       setIsSubmitting(false);
     }
@@ -139,7 +150,9 @@ export default function LoginPage() {
             editable={!isSubmitting}
           />
 
-          <Pressable accessibilityRole="button" accessibilityState={{ disabled: isSubmitting, busy: isSubmitting }} disabled={isSubmitting} onPress={handleSubmit} style={({ pressed }) => [authStyles.button, isSubmitting && authStyles.buttonDisabled, pressed && authStyles.buttonPressed]}>
+          <TurnstileVerification ref={verificationRef} onTokenChange={setVerificationToken} />
+
+          <Pressable accessibilityRole="button" accessibilityState={{ disabled: isSubmitting || (Platform.OS === 'web' && !verificationToken), busy: isSubmitting }} disabled={isSubmitting || (Platform.OS === 'web' && !verificationToken)} onPress={handleSubmit} style={({ pressed }) => [authStyles.button, (isSubmitting || (Platform.OS === 'web' && !verificationToken)) && authStyles.buttonDisabled, pressed && authStyles.buttonPressed]}>
             <Text style={authStyles.buttonText}>{isSubmitting ? 'Logging in...' : 'Log in'}</Text>
           </Pressable>
           {result ? <Text accessibilityRole="alert" style={[authStyles.result, authStyles.resultError]}>{result}</Text> : null}

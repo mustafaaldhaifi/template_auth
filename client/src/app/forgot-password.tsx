@@ -1,17 +1,19 @@
 import { useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { ApiRequestError } from '../api/client';
 import { requestPasswordRecoveryCode } from '../api/passwordRecovery';
 import AuthInput from '../components/AuthInput';
 import AuthNavigation from '../components/AuthNavigation';
+import TurnstileVerification from '../components/TurnstileVerification';
+import type { TurnstileVerificationHandle } from '../components/TurnstileVerification.types';
 import { useRecoveryFlow } from '../features/passwordRecovery/RecoveryFlowContext';
 import { authStyles } from '../theme/authStyles';
 
 /**
  * Requests an emailed recovery code on web, Android, and iOS.
- * 1. Validate the address and prevent overlapping submissions.
- * 2. Send the request through the shared API client.
+ * 1. Validate the address and require a web verification proof.
+ * 2. Send one request through the shared API client.
  * 3. Continue to code entry or show field and request errors.
  */
 export default function ForgotPasswordPage() {
@@ -20,6 +22,8 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState('');
   const [result, setResult] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [verificationToken, setVerificationToken] = useState('');
+  const verificationRef = useRef<TurnstileVerificationHandle>(null);
   const submissionInFlight = useRef(false);
   const router = useRouter();
   const recovery = useRecoveryFlow();
@@ -34,9 +38,9 @@ export default function ForgotPasswordPage() {
   // STEP 2: Submit only validated addresses through the recovery API.
   /**
    * Sends one code request and advances only after the server responds.
-   * 1. Reject duplicate requests and invalid addresses.
+   * 1. Reject duplicate, invalid, or unverified web requests.
    * 2. Remember the normalized address and open code entry on success.
-   * 3. Keep the form available with server feedback on failure.
+   * 3. Keep the form available with feedback and refresh the consumed proof.
    */
   async function handleSendRecoveryCode() {
     // STEP 1: Check the draft before contacting the server.
@@ -47,6 +51,10 @@ export default function ForgotPasswordPage() {
       setResult('Please correct the highlighted field.');
       return;
     }
+    if (Platform.OS === 'web' && !verificationToken) {
+      setResult('Complete the security check before requesting a recovery code.');
+      return;
+    }
 
     // STEP 2: The response is intentionally the same for registered and unknown addresses.
     submissionInFlight.current = true;
@@ -54,7 +62,9 @@ export default function ForgotPasswordPage() {
     setError('');
     setResult('');
     try {
-      await requestPasswordRecoveryCode(normalizedEmail);
+      await requestPasswordRecoveryCode(normalizedEmail, Platform.OS === 'web'
+        ? { verificationToken, verificationMethod: 'turnstile' }
+        : undefined);
       recovery.begin(normalizedEmail);
       router.replace('/verify-reset-code');
     } catch (requestError) {
@@ -66,6 +76,7 @@ export default function ForgotPasswordPage() {
         setResult('Could not request a recovery code. Please try again.');
       }
     } finally {
+      verificationRef.current?.reset();
       submissionInFlight.current = false;
       setIsSubmitting(false);
     }
@@ -91,12 +102,14 @@ export default function ForgotPasswordPage() {
             editable={!isSubmitting}
           />
 
+          <TurnstileVerification ref={verificationRef} onTokenChange={setVerificationToken} />
+
           <Pressable
             accessibilityRole="button"
-            accessibilityState={{ disabled: isSubmitting, busy: isSubmitting }}
-            disabled={isSubmitting}
+            accessibilityState={{ disabled: isSubmitting || (Platform.OS === 'web' && !verificationToken), busy: isSubmitting }}
+            disabled={isSubmitting || (Platform.OS === 'web' && !verificationToken)}
             onPress={handleSendRecoveryCode}
-            style={({ pressed }) => [authStyles.button, isSubmitting && authStyles.buttonDisabled, pressed && authStyles.buttonPressed]}
+            style={({ pressed }) => [authStyles.button, (isSubmitting || (Platform.OS === 'web' && !verificationToken)) && authStyles.buttonDisabled, pressed && authStyles.buttonPressed]}
           >
             <Text style={authStyles.buttonText}>{isSubmitting ? 'Sending...' : 'Send recovery code'}</Text>
           </Pressable>

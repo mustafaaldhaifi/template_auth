@@ -1,12 +1,15 @@
 import { useRef, useState } from 'react';
 import {
   Pressable,
+  Platform,
   ScrollView,
   Text,
   View,
 } from 'react-native';
 import AuthInput from '../components/AuthInput';
 import AuthNavigation from '../components/AuthNavigation';
+import TurnstileVerification from '../components/TurnstileVerification';
+import type { TurnstileVerificationHandle } from '../components/TurnstileVerification.types';
 import { ApiRequestError } from '../api/client';
 import { signup, type SignupValues } from '../api/signup';
 import { authStyles } from '../theme/authStyles';
@@ -59,7 +62,7 @@ function validateSignup(values: SignupValues): SignupErrors {
 /**
  * Presents the shared sign-up form on web, Android, and iOS.
  * 1. Keep entered values, errors, and request progress in local state.
- * 2. Validate and submit the form to the shared sign-up API module.
+ * 2. Validate and submit the form with web verification through the shared API module.
  * 3. Show the server result and links to the other pages.
  */
 export default function SignupPage() {
@@ -68,6 +71,8 @@ export default function SignupPage() {
   const [errors, setErrors] = useState<SignupErrors>({});
   const [feedback, setFeedback] = useState<SignupFeedback>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [verificationToken, setVerificationToken] = useState('');
+  const verificationRef = useRef<TurnstileVerificationHandle>(null);
   const submissionInFlight = useRef(false);
 
   /**
@@ -90,10 +95,10 @@ export default function SignupPage() {
 
   /**
    * Validates and submits the draft while preventing duplicate requests.
-   * 1. Stop an overlapping submission or invalid draft.
+   * 1. Stop an overlapping, invalid, or unverified web submission.
    * 2. Send the separate name fields and credentials to the API.
    * 3. Display success, field errors, or a connection error.
-   * 4. Clear progress so the form can be submitted again.
+   * 4. Clear progress and refresh the consumed web proof for another attempt.
    */
   async function handleSubmit() {
     // STEP 1: Guard against duplicate taps and invalid fields.
@@ -104,13 +109,19 @@ export default function SignupPage() {
       setFeedback({ kind: 'error', message: 'Please correct the highlighted fields.' });
       return;
     }
+    if (Platform.OS === 'web' && !verificationToken) {
+      setFeedback({ kind: 'error', message: 'Complete the security check before creating an account.' });
+      return;
+    }
 
     // STEP 2: Send one request and keep the form locked until it finishes.
     submissionInFlight.current = true;
     setIsSubmitting(true);
     setFeedback(null);
     try {
-      await signup(values);
+      await signup(values, Platform.OS === 'web'
+        ? { verificationToken, verificationMethod: 'turnstile' }
+        : undefined);
       // STEP 3: Clear the submitted details only after the account exists.
       setValues(initialValues);
       setFeedback({ kind: 'success', message: 'Account created successfully.' });
@@ -128,6 +139,7 @@ export default function SignupPage() {
       }
     } finally {
       // STEP 4: Let the user submit again after the request finishes.
+      verificationRef.current?.reset();
       submissionInFlight.current = false;
       setIsSubmitting(false);
     }
@@ -149,7 +161,9 @@ export default function SignupPage() {
           <AuthInput label="Password" value={values.password} onChangeText={(text) => updateField('password', text)} error={errors.password} autoComplete="new-password" secureTextEntry editable={!isSubmitting} />
           <AuthInput label="Confirm password" value={values.confirmPassword} onChangeText={(text) => updateField('confirmPassword', text)} error={errors.confirmPassword} autoComplete="new-password" secureTextEntry editable={!isSubmitting} />
 
-          <Pressable accessibilityRole="button" accessibilityState={{ disabled: isSubmitting, busy: isSubmitting }} disabled={isSubmitting} onPress={handleSubmit} style={({ pressed }) => [authStyles.button, isSubmitting && authStyles.buttonDisabled, pressed && authStyles.buttonPressed]}>
+          <TurnstileVerification ref={verificationRef} onTokenChange={setVerificationToken} />
+
+          <Pressable accessibilityRole="button" accessibilityState={{ disabled: isSubmitting || (Platform.OS === 'web' && !verificationToken), busy: isSubmitting }} disabled={isSubmitting || (Platform.OS === 'web' && !verificationToken)} onPress={handleSubmit} style={({ pressed }) => [authStyles.button, (isSubmitting || (Platform.OS === 'web' && !verificationToken)) && authStyles.buttonDisabled, pressed && authStyles.buttonPressed]}>
             <Text style={authStyles.buttonText}>{isSubmitting ? 'Creating account...' : 'Create account'}</Text>
           </Pressable>
           {feedback ? <Text accessibilityRole="alert" style={[authStyles.result, feedback.kind === 'error' && authStyles.resultError]}>{feedback.message}</Text> : null}

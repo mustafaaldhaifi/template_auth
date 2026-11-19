@@ -771,6 +771,24 @@
                     "verification": "Call each existing login, signup, and forgot-password endpoint with a first well-formed request and no device cookie, including failed credentials or an unknown recovery email: the response issues one device cookie and creates one device record. Repeat with that cookie and confirm no second device is created. A session is created only after successful login and survives a server restart; missing or mismatched device cookies invalidate access, while an IP change alone does not. Logout and password reset revoke sessions."
                 },
                 {
+                    "id": "add-web-turnstile-to-auth-forms",
+                    "title": "Add one reusable Cloudflare Turnstile component to the web login, signup, and forgot-password forms; send its proof as the platform-neutral verificationToken with verificationMethod set to turnstile, refresh expired or used tokens, and leave Android and iOS UI unchanged",
+                    "version": "0.3.10",
+                    "type": "frontend",
+                    "changeType": "add",
+                    "done": true,
+                    "verification": "On the web, open login, signup, and forgot-password and confirm each form obtains a Turnstile token before submission, prevents duplicate submissions, and requests a fresh token after expiry or use. Confirm the existing POST paths and other request fields remain unchanged. Android and iOS do not display Turnstile."
+                },
+                {
+                    "id": "verify-web-turnstile-before-device-access",
+                    "title": "Verify the generic verificationToken using the turnstile verificationMethod on the existing login, signup, and forgot-password POST endpoints before looking up, creating, or updating a device; validate Cloudflare Siteverify success, expected action, and allowed hostname, with a separate verifier that can accept native methods later",
+                    "version": "0.3.11",
+                    "type": "backend",
+                    "changeType": "update",
+                    "done": false,
+                    "verification": "For each existing auth endpoint, a missing, invalid, expired, reused, or wrong-action Turnstile token returns the standard field error and creates or updates no device, IP link, account, recovery code, or session. A valid token proceeds through the existing response flow. A verifier outage returns a retryable service error without a device write. Native clients remain unsupported on these protected requests until their own verification methods are added."
+                },
+                {
                     "id": "enforce-security-blocks",
                     "title": "Check active IP and device blocks on existing authentication and protected requests, revoke a blocked device's sessions, and revoke a selected session without adding public management routes",
                     "version": "0.3.8",

@@ -1,12 +1,13 @@
 import { apiRequest } from './client';
+import type { VerificationProof } from './verification';
 
 /** Requests an email code without revealing whether the address has an account. */
-export function requestPasswordRecoveryCode(email: string): Promise<void> {
+export function requestPasswordRecoveryCode(email: string, verification?: VerificationProof): Promise<void> {
   return apiRequest<void>('/api/auth/forgot-password', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, ...verification }),
   });
 }
 

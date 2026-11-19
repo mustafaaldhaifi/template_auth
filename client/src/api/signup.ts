@@ -1,4 +1,5 @@
 import { apiRequest } from './client';
+import type { VerificationProof } from './verification';
 
 export type SignupValues = {
   firstName: string;
@@ -15,11 +16,11 @@ export type SignupResult = {
   email: string;
 };
 
-export function signup(values: SignupValues): Promise<SignupResult> {
+export function signup(values: SignupValues, verification?: VerificationProof): Promise<SignupResult> {
   return apiRequest<SignupResult>('/api/auth/signup', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify(values),
+    body: JSON.stringify({ ...values, ...verification }),
   });
 }

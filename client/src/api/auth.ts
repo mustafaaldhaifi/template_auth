@@ -1,16 +1,17 @@
 import { apiRequest } from './client';
+import type { VerificationProof } from './verification';
 
 export type LoginValues = { email: string; password: string };
 export type LoginResult = { id: string; firstName: string; lastName: string; email: string };
 export type CurrentUser = { firstName: string; lastName: string; email: string };
 
 /** Sends credentials and lets the platform retain the server's session cookie. */
-export function login(values: LoginValues): Promise<LoginResult> {
+export function login(values: LoginValues, verification?: VerificationProof): Promise<LoginResult> {
   return apiRequest<LoginResult>('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify(values),
+    body: JSON.stringify({ ...values, ...verification }),
   });
 }
 
