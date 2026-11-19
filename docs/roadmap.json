@@ -533,7 +533,7 @@
                     "version": "0.3.4",
                     "type": "backend",
                     "changeType": "add",
-                    "done": false,
+                    "done": true,
                     "verification": "Apply the migration and confirm one device can use several IPs, one IP can serve several devices, and duplicate pairs are rejected.",
                     "structure": {
                         "table": "ip_devices",
