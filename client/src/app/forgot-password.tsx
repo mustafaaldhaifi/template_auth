@@ -86,8 +86,6 @@ export default function ForgotPasswordPage() {
   return (
     <ScrollView contentContainerStyle={authStyles.page} keyboardShouldPersistTaps="handled">
       <View style={authStyles.card}>
-        <View style={authStyles.mark}><Text style={authStyles.markText}>A</Text></View>
-        <Text style={authStyles.eyebrow}>ACCOUNT RECOVERY</Text>
         <Text style={authStyles.title}>Forgot your password?</Text>
         <Text style={authStyles.subtitle}>Enter your email address to receive an 8-digit recovery code.</Text>
 

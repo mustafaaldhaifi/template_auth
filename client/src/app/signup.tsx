@@ -149,10 +149,7 @@ export default function SignupPage() {
   return (
     <ScrollView contentContainerStyle={authStyles.page} keyboardShouldPersistTaps="handled">
       <View style={authStyles.card}>
-        <View style={authStyles.mark}><Text style={authStyles.markText}>A</Text></View>
-        <Text style={authStyles.eyebrow}>GET STARTED</Text>
         <Text style={authStyles.title}>Create your account</Text>
-        <Text style={authStyles.subtitle}>Enter your details to create your new account.</Text>
 
         <View style={authStyles.form}>
           <AuthInput label="First name" value={values.firstName} onChangeText={(text) => updateField('firstName', text)} error={errors.firstName} autoComplete="given-name" autoCapitalize="words" editable={!isSubmitting} />

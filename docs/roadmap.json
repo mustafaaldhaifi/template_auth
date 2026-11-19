@@ -793,7 +793,7 @@
         {
             "version": "0.5.0",
             "title": "Improve the user interface and remove unused UI elements",
-            "status": "not_started",
+            "status": "in_progress",
             "tasks": [
                 {
                     "id": "simplify-auth-navigation",
@@ -801,7 +801,7 @@
                     "version": "0.4.1",
                     "type": "frontend",
                     "changeType": "remove",
-                    "done": false,
+                    "done": true,
                     "verification": "Open login, signup, and password recovery. Check that the preview link and decorative labels are gone, signup and recovery are reachable from login, and the recovery instructions remain visible."
                 },
                 {

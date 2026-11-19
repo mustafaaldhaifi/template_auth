@@ -76,8 +76,6 @@ export default function VerifyResetCodePage() {
   return (
     <ScrollView contentContainerStyle={authStyles.page} keyboardShouldPersistTaps="handled">
       <View style={authStyles.card}>
-        <View style={authStyles.mark}><Text style={authStyles.markText}>A</Text></View>
-        <Text style={authStyles.eyebrow}>ACCOUNT RECOVERY</Text>
         <Text style={authStyles.title}>Enter verification code</Text>
         {recovery.email ? (
           <>

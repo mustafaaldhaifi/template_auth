@@ -107,8 +107,6 @@ export default function ResetPasswordPage() {
   return (
     <ScrollView contentContainerStyle={authStyles.page} keyboardShouldPersistTaps="handled">
       <View style={authStyles.card}>
-        <View style={authStyles.mark}><Text style={authStyles.markText}>A</Text></View>
-        <Text style={authStyles.eyebrow}>ACCOUNT RECOVERY</Text>
         <Text style={authStyles.title}>Set a new password</Text>
         <Text style={authStyles.subtitle}>
           {recovery.token ? 'Choose a new password and confirm it below.' : 'Verify a recovery code before setting a new password.'}

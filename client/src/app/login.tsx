@@ -120,10 +120,7 @@ export default function LoginPage() {
   return (
     <ScrollView contentContainerStyle={authStyles.page} keyboardShouldPersistTaps="handled">
       <View style={authStyles.card}>
-        <View style={authStyles.mark}><Text style={authStyles.markText}>A</Text></View>
-        <Text style={authStyles.eyebrow}>WELCOME BACK</Text>
         <Text style={authStyles.title}>Log in to your account</Text>
-        <Text style={authStyles.subtitle}>Enter your email and password to continue.</Text>
         {recovered === '1' && !result ? (
           <Text accessibilityRole="alert" style={authStyles.result}>
             Password updated. Sign in with your new password.
