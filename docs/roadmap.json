@@ -588,7 +588,7 @@
                     "version": "0.3.5",
                     "type": "backend",
                     "changeType": "add",
-                    "done": false,
+                    "done": true,
                     "verification": "Apply the migration and confirm a session gets an internal increasing ID, requires an existing user and device, rejects duplicate token hashes, and records its expiry and optional issuing IP.",
                     "structure": {
                         "table": "auth_sessions",
