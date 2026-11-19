@@ -767,7 +767,7 @@
                     "version": "0.3.7",
                     "type": "backend",
                     "changeType": "update",
-                    "done": false,
+                    "done": true,
                     "verification": "Call each existing login, signup, and forgot-password endpoint with a first well-formed request and no device cookie, including failed credentials or an unknown recovery email: the response issues one device cookie and creates one device record. Repeat with that cookie and confirm no second device is created. A session is created only after successful login and survives a server restart; missing or mismatched device cookies invalidate access, while an IP change alone does not. Logout and password reset revoke sessions."
                 },
                 {

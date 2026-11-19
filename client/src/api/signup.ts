@@ -19,6 +19,7 @@ export function signup(values: SignupValues): Promise<SignupResult> {
   return apiRequest<SignupResult>('/api/auth/signup', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(values),
   });
 }

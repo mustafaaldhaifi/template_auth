@@ -3,7 +3,7 @@ import { hashPassword } from '@/features/auth/passwordHash';
 import { consumePasswordResetGrant, hasActivePasswordResetGrant } from '@/features/auth/passwordResetRepository';
 import { hashPasswordResetToken } from '@/features/auth/passwordResetToken';
 import { validateResetPasswordInput } from '@/features/auth/passwordResetValidation';
-import { expiredSessionCookie, invalidateUserSessions } from '@/features/auth/sessionStore';
+import { expiredSessionCookie } from '@/features/auth/sessionStore';
 
 export function OPTIONS(request: Request): Response {
   return new Response(null, { status: 204, headers: authCorsHeaders(request) });
@@ -24,7 +24,7 @@ function invalidGrant(headers: Record<string, string>): Response {
  * Sets a new password after the user presents a verified reset grant.
  * 1. Parse and validate the grant and new password fields.
  * 2. Verify the grant before hashing, then change the password atomically.
- * 3. Clear local sessions and return an empty success response.
+ * 3. Return an empty response after the transaction revokes account sessions.
  */
 export async function POST(request: Request): Promise<Response> {
   const headers = { ...authCorsHeaders(request), 'Cache-Control': 'no-store' };
@@ -56,8 +56,7 @@ export async function POST(request: Request): Promise<Response> {
     const userId = await consumePasswordResetGrant(tokenHash, passwordHash);
     if (!userId) return invalidGrant(headers);
 
-    // STEP 3: Remove this process's sessions after the database commits.
-    invalidateUserSessions(userId);
+    // STEP 3: The password and session revocations committed together.
     return new Response(null, {
       status: 204,
       headers: { ...headers, 'Set-Cookie': expiredSessionCookie(request) },

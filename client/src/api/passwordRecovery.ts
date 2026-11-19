@@ -5,6 +5,7 @@ export function requestPasswordRecoveryCode(email: string): Promise<void> {
   return apiRequest<void>('/api/auth/forgot-password', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ email }),
   });
 }

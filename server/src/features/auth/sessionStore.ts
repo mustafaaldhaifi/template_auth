@@ -1,75 +1,50 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { authCookie, expiredAuthCookie, readAuthCookie } from './authCookies';
+import { hashOpaqueToken, isOpaqueToken, newOpaqueToken } from './authTokens';
+import { requestDeviceTokenHash } from './deviceStore';
+import { findActiveSessionUserId, insertSession, revokeSession } from './sessionRepository';
 
 const sessionLifetimeSeconds = 60 * 60 * 24 * 7;
 const sessionCookieName = 'auth_session';
-type SessionRecord = { userId: string; expiresAt: number };
-const sessionGlobal = globalThis as typeof globalThis & {
-  authSessions?: Map<string, SessionRecord>;
-};
-// NOTE: A global store survives Next.js module reloads during local development.
-const sessions = sessionGlobal.authSessions ??= new Map<string, SessionRecord>();
-
-function tokenKey(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
-}
 
 /**
- * Creates an opaque local session with a fixed expiration.
- * 1. Remove expired entries from the local store.
- * 2. Generate a new random token and save only its digest.
+ * Creates an opaque persistent session only after successful authentication.
+ * 1. Generate a fresh high-entropy token and fixed expiry.
+ * 2. Persist its digest with the authenticated user and device.
  */
-export function createSession(userId: string): string {
-  // STEP 1: Bound growth from expired sessions during a long development run.
-  const now = Date.now();
-  for (const [key, session] of sessions) {
-    if (session.expiresAt <= now) sessions.delete(key);
-  }
-  // STEP 2: Keep the raw token only in the user's cookie.
-  const token = randomBytes(32).toString('base64url');
-  sessions.set(tokenKey(token), { userId, expiresAt: now + sessionLifetimeSeconds * 1000 });
+export async function createSession(userId: string, deviceId: string, loginIpId: string | null): Promise<string> {
+  // STEP 1: A fresh session never reuses the pre-authentication device token.
+  const token = newOpaqueToken();
+  const expiresAt = new Date(Date.now() + sessionLifetimeSeconds * 1000);
+
+  // STEP 2: Only a completed database write may yield a session cookie.
+  await insertSession(hashOpaqueToken(token), userId, deviceId, loginIpId, expiresAt);
   return token;
 }
 
-/** Removes a session immediately when its cookie token is supplied. */
-export function invalidateSession(token: string | null): void {
-  if (token) sessions.delete(tokenKey(token));
+/** Removes the current session from use while retaining its database record. */
+export async function invalidateSession(token: string | null): Promise<void> {
+  if (isOpaqueToken(token)) await revokeSession(hashOpaqueToken(token));
 }
 
-/** Removes this user's local sessions after their password is reset. */
-export function invalidateUserSessions(userId: string): void {
-  for (const [key, session] of sessions) {
-    if (session.userId === userId) sessions.delete(key);
-  }
-}
-
-/** Returns the user for a live session, removing expired entries on access. */
-export function getSessionUserId(token: string | null): string | null {
-  if (!token) return null;
-  const key = tokenKey(token);
-  const session = sessions.get(key);
-  if (!session) return null;
-  if (session.expiresAt <= Date.now()) {
-    sessions.delete(key);
-    return null;
-  }
-  return session.userId;
+/** Checks the session and device cookies together on every protected request. */
+export async function getSessionUserId(request: Request): Promise<string | null> {
+  const sessionToken = readSessionCookie(request);
+  const deviceTokenHash = requestDeviceTokenHash(request);
+  if (!isOpaqueToken(sessionToken) || !deviceTokenHash) return null;
+  return findActiveSessionUserId(hashOpaqueToken(sessionToken), deviceTokenHash);
 }
 
 /** Reads only the opaque session cookie from an incoming request. */
 export function readSessionCookie(request: Request): string | null {
-  const entry = request.headers.get('cookie')?.split(';').map((part) => part.trim())
-    .find((part) => part.startsWith(`${sessionCookieName}=`));
-  return entry ? entry.slice(sessionCookieName.length + 1) : null;
+  return readAuthCookie(request, sessionCookieName);
 }
 
-/** Builds a browser cookie that is inaccessible to client JavaScript. */
+/** Builds a session cookie that is inaccessible to client JavaScript. */
 export function sessionCookie(token: string, request: Request): string {
-  const secure = new URL(request.url).protocol === 'https:' ? '; Secure' : '';
-  return `${sessionCookieName}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${sessionLifetimeSeconds}${secure}`;
+  return authCookie(sessionCookieName, token, sessionLifetimeSeconds, request);
 }
 
-/** Expires the browser cookie after the server has invalidated its token. */
+/** Expires the browser's session cookie after server-side revocation. */
 export function expiredSessionCookie(request: Request): string {
-  const secure = new URL(request.url).protocol === 'https:' ? '; Secure' : '';
-  return `${sessionCookieName}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`;
+  return expiredAuthCookie(sessionCookieName, request);
 }

@@ -1,4 +1,7 @@
 import { authCorsHeaders } from '@/features/auth/authCors';
+import { appendAuthCookie } from '@/features/auth/authCookies';
+import { DeviceIssueLimitError } from '@/features/auth/deviceRepository';
+import { resolveOrCreateDevice, withDeviceCookie, type DeviceIdentity } from '@/features/auth/deviceStore';
 import type { LoginAccount } from '@/features/auth/loginRepository';
 import { findLoginAccount } from '@/features/auth/loginRepository';
 import { hashPassword } from '@/features/auth/passwordHash';
@@ -65,15 +68,22 @@ function loginError(
   return Response.json({ error }, { status, headers });
 }
 
-/** Returns public account details while placing the session token in an HttpOnly cookie. */
-function loginSuccess(account: LoginAccount, request: Request, headers: Record<string, string>): Response {
-  const token = createSession(account.id);
-  return Response.json({ data: {
+/** Returns public account details only after the device-bound session is stored. */
+async function loginSuccess(
+  account: LoginAccount,
+  device: DeviceIdentity,
+  request: Request,
+  headers: Record<string, string>,
+): Promise<Response> {
+  const token = await createSession(account.id, device.id, device.ipId);
+  const response = Response.json({ data: {
     id: account.id,
     firstName: account.firstName,
     lastName: account.lastName,
     email: account.email,
-  } }, { status: 200, headers: { ...headers, 'Set-Cookie': sessionCookie(token, request) } });
+  } }, { status: 200, headers });
+  appendAuthCookie(response, sessionCookie(token, request));
+  return withDeviceCookie(response, device);
 }
 
 export function OPTIONS(request: Request): Response {
@@ -81,13 +91,13 @@ export function OPTIONS(request: Request): Response {
 }
 
 /**
- * Validates credentials and creates a local browser session.
+ * Validates credentials and creates a persistent device-bound session.
  * 1. Parse the request and return clear input errors.
- * 2. Authenticate credentials without exposing account existence.
- * 3. Return account data and a secure session cookie.
+ * 2. Reuse or issue a device before checking the submitted credentials.
+ * 3. Authenticate without exposing account existence and create a session only on success.
  */
 export async function POST(request: Request): Promise<Response> {
-  const headers = authCorsHeaders(request);
+  const headers = { ...authCorsHeaders(request), 'Cache-Control': 'no-store' };
   // STEP 1: Reject malformed or invalid input before database access.
   let body: unknown;
   try {
@@ -101,17 +111,22 @@ export async function POST(request: Request): Promise<Response> {
       headers, validation.fieldErrors);
   }
 
-  // STEP 2: Use a generic response for missing accounts and wrong passwords.
+  // STEP 2: A failed but well-formed first attempt still receives a device cookie.
+  let device: DeviceIdentity | null = null;
   try {
+    device = await resolveOrCreateDevice(request);
+
+    // STEP 3: Use a generic response for missing accounts and wrong passwords.
     const account = await authenticateLogin(validation.value);
     if (!account) {
-      return loginError(401, 'INVALID_CREDENTIALS', 'Email or password is incorrect.', headers);
+      return withDeviceCookie(loginError(401, 'INVALID_CREDENTIALS', 'Email or password is incorrect.', headers), device);
     }
-
-    // STEP 3: Issue an opaque cookie and omit the password hash from the response.
-    return loginSuccess(account, request, headers);
+    return await loginSuccess(account, device, request, headers);
   } catch (error) {
+    if (error instanceof DeviceIssueLimitError) {
+      return loginError(429, 'TOO_MANY_REQUESTS', 'Please wait before trying again.', headers);
+    }
     console.error('Failed to sign in.', error);
-    return loginError(500, 'INTERNAL_ERROR', 'We could not sign you in right now.', headers);
+    return withDeviceCookie(loginError(500, 'INTERNAL_ERROR', 'We could not sign you in right now.', headers), device);
   }
 }

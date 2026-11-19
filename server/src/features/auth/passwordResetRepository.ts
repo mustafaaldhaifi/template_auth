@@ -1,5 +1,6 @@
 import { getDatabase } from '@/lib/database';
 import { matchesPasswordResetCode } from './passwordResetToken';
+import { revokeUserSessionsInTransaction } from './sessionRepository';
 
 export type PasswordResetAccount = { userId: string; email: string };
 
@@ -122,7 +123,7 @@ export async function hasActivePasswordResetGrant(grantHash: string): Promise<bo
  * Spends a verified grant and changes the account's password atomically.
  * 1. Claim the unexpired grant once.
  * 2. Update the password or roll back the claim.
- * 3. Invalidate every other outstanding code or grant for that account.
+ * 3. Invalidate other recovery grants and all login sessions in the same transaction.
  */
 export async function consumePasswordResetGrant(
   grantHash: string,
@@ -150,12 +151,13 @@ export async function consumePasswordResetGrant(
       throw new Error('Password credential disappeared during reset.');
     }
 
-    // STEP 3: A completed reset invalidates every other outstanding code or grant.
+    // STEP 3: No old grant or session survives a committed password change.
     await transaction.updateTable('password_reset_tokens')
       .set({ consumed_at: now })
       .where('user_id', '=', grant.user_id)
       .where('consumed_at', 'is', null)
       .execute();
+    await revokeUserSessionsInTransaction(transaction, grant.user_id, now);
     return grant.user_id;
   });
 }
