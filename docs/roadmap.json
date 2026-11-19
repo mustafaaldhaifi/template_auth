@@ -425,7 +425,7 @@
                     "version": "0.3.2",
                     "type": "backend",
                     "changeType": "add",
-                    "done": false,
+                    "done": true,
                     "verification": "Apply the migration and confirm a device references a seeded platform; duplicate token hashes and unknown platforms are rejected.",
                     "structure": {
                         "table": "devices",
