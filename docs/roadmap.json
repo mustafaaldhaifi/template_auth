@@ -384,26 +384,228 @@
         },
         {
             "version": "0.4.0",
-            "title": "Persist login sessions after successful authentication",
-            "status": "not_started",
+            "title": "Create device, platform, IP, session, and security-block tables and enforce device-bound sessions",
+            "status": "in_progress",
             "tasks": [
                 {
-                    "id": "persist-login-sessions",
-                    "title": "Save a database-backed session only after successful login and use the existing login, logout, and current-user endpoints; invalidate sessions after logout and password reset without adding a route",
+                    "id": "create-platforms-table",
+                    "title": "Create and seed the platforms lookup table with ios, android, and web",
                     "version": "0.3.1",
                     "type": "backend",
                     "changeType": "add",
+                    "done": true,
+                    "verification": "Apply the migration and confirm that platforms contains exactly the seeded ios, android, and web codes; duplicate or other codes are rejected.",
+                    "structure": {
+                        "table": "platforms",
+                        "operation": "create",
+                        "columns": [
+                            {
+                                "name": "id",
+                                "type": "smallint",
+                                "nullable": false,
+                                "primaryKey": true,
+                                "identity": "generated always"
+                            },
+                            {
+                                "name": "code",
+                                "type": "text",
+                                "nullable": false,
+                                "unique": true
+                            }
+                        ],
+                        "constraints": [
+                            "code IN ('ios', 'android', 'web')"
+                        ],
+                        "seed": ["ios", "android", "web"]
+                    }
+                },
+                {
+                    "id": "create-devices-table",
+                    "title": "Create devices with an internal increasing ID, a hashed server-issued device token, platform, OS version, and model",
+                    "version": "0.3.2",
+                    "type": "backend",
+                    "changeType": "add",
                     "done": false,
-                    "verification": "Sign in with a valid password, restart the server, and confirm the session still opens protected account data. Confirm invalid credentials create no session, logout ends the current session, and password reset ends the account's sessions.",
+                    "verification": "Apply the migration and confirm a device references a seeded platform; duplicate token hashes and unknown platforms are rejected.",
+                    "structure": {
+                        "table": "devices",
+                        "operation": "create",
+                        "columns": [
+                            {
+                                "name": "id",
+                                "type": "bigint",
+                                "nullable": false,
+                                "primaryKey": true,
+                                "identity": "generated always"
+                            },
+                            {
+                                "name": "device_token_hash",
+                                "type": "text",
+                                "nullable": false,
+                                "unique": true
+                            },
+                            {
+                                "name": "platform_id",
+                                "type": "smallint",
+                                "nullable": false,
+                                "references": {
+                                    "table": "platforms",
+                                    "column": "id",
+                                    "onDelete": "restrict"
+                                }
+                            },
+                            {
+                                "name": "os_version",
+                                "type": "text",
+                                "nullable": true
+                            },
+                            {
+                                "name": "model",
+                                "type": "text",
+                                "nullable": true
+                            },
+                            {
+                                "name": "created_at",
+                                "type": "timestamptz",
+                                "nullable": false,
+                                "default": "now()"
+                            },
+                            {
+                                "name": "last_seen_at",
+                                "type": "timestamptz",
+                                "nullable": false,
+                                "default": "now()"
+                            }
+                        ],
+                        "constraints": [
+                            "length(device_token_hash) = 64"
+                        ],
+                        "indexes": [
+                            {
+                                "columns": ["platform_id"]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": "create-ips-table",
+                    "title": "Create a unique IP address record with creation and last-seen timestamps",
+                    "version": "0.3.3",
+                    "type": "backend",
+                    "changeType": "add",
+                    "done": false,
+                    "verification": "Apply the migration and confirm that an IPv4 or IPv6 address can be recorded once, while a duplicate address is rejected.",
+                    "structure": {
+                        "table": "ips",
+                        "operation": "create",
+                        "columns": [
+                            {
+                                "name": "id",
+                                "type": "bigint",
+                                "nullable": false,
+                                "primaryKey": true,
+                                "identity": "generated always"
+                            },
+                            {
+                                "name": "address",
+                                "type": "inet",
+                                "nullable": false,
+                                "unique": true
+                            },
+                            {
+                                "name": "created_at",
+                                "type": "timestamptz",
+                                "nullable": false,
+                                "default": "now()"
+                            },
+                            {
+                                "name": "last_seen_at",
+                                "type": "timestamptz",
+                                "nullable": false,
+                                "default": "now()"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": "create-ip-devices-table",
+                    "title": "Link each observed IP address to each device and track when the link was created and last seen",
+                    "version": "0.3.4",
+                    "type": "backend",
+                    "changeType": "add",
+                    "done": false,
+                    "verification": "Apply the migration and confirm one device can use several IPs, one IP can serve several devices, and duplicate pairs are rejected.",
+                    "structure": {
+                        "table": "ip_devices",
+                        "operation": "create",
+                        "columns": [
+                            {
+                                "name": "device_id",
+                                "type": "bigint",
+                                "nullable": false,
+                                "references": {
+                                    "table": "devices",
+                                    "column": "id",
+                                    "onDelete": "cascade"
+                                }
+                            },
+                            {
+                                "name": "ip_id",
+                                "type": "bigint",
+                                "nullable": false,
+                                "references": {
+                                    "table": "ips",
+                                    "column": "id",
+                                    "onDelete": "cascade"
+                                }
+                            },
+                            {
+                                "name": "created_at",
+                                "type": "timestamptz",
+                                "nullable": false,
+                                "default": "now()"
+                            },
+                            {
+                                "name": "last_seen_at",
+                                "type": "timestamptz",
+                                "nullable": false,
+                                "default": "now()"
+                            }
+                        ],
+                        "constraints": [
+                            "PRIMARY KEY (device_id, ip_id)"
+                        ],
+                        "indexes": [
+                            {
+                                "columns": ["ip_id"]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": "create-auth-sessions-table",
+                    "title": "Create persistent sessions with an internal ID, linked users and devices, issuing IP, expiry, and revocation timestamps",
+                    "version": "0.3.5",
+                    "type": "backend",
+                    "changeType": "add",
+                    "done": false,
+                    "verification": "Apply the migration and confirm a session gets an internal increasing ID, requires an existing user and device, rejects duplicate token hashes, and records its expiry and optional issuing IP.",
                     "structure": {
                         "table": "auth_sessions",
                         "operation": "create",
                         "columns": [
                             {
+                                "name": "id",
+                                "type": "bigint",
+                                "nullable": false,
+                                "primaryKey": true,
+                                "identity": "generated always"
+                            },
+                            {
                                 "name": "token_hash",
                                 "type": "text",
                                 "nullable": false,
-                                "primaryKey": true
+                                "unique": true
                             },
                             {
                                 "name": "user_id",
@@ -416,6 +618,26 @@
                                 }
                             },
                             {
+                                "name": "device_id",
+                                "type": "bigint",
+                                "nullable": false,
+                                "references": {
+                                    "table": "devices",
+                                    "column": "id",
+                                    "onDelete": "cascade"
+                                }
+                            },
+                            {
+                                "name": "login_ip_id",
+                                "type": "bigint",
+                                "nullable": true,
+                                "references": {
+                                    "table": "ips",
+                                    "column": "id",
+                                    "onDelete": "set null"
+                                }
+                            },
+                            {
                                 "name": "created_at",
                                 "type": "timestamptz",
                                 "nullable": false,
@@ -425,6 +647,11 @@
                                 "name": "expires_at",
                                 "type": "timestamptz",
                                 "nullable": false
+                            },
+                            {
+                                "name": "revoked_at",
+                                "type": "timestamptz",
+                                "nullable": true
                             }
                         ],
                         "constraints": [
@@ -434,9 +661,132 @@
                         "indexes": [
                             {
                                 "columns": ["user_id"]
+                            },
+                            {
+                                "columns": ["device_id"]
+                            },
+                            {
+                                "columns": ["login_ip_id"]
                             }
                         ]
                     }
+                },
+                {
+                    "id": "create-security-blocks-table",
+                    "title": "Create security_blocks to record temporary or permanent IP and device blocks and revocation of individual sessions",
+                    "version": "0.3.6",
+                    "type": "backend",
+                    "changeType": "add",
+                    "done": false,
+                    "verification": "Apply the migration and confirm a block targets exactly one existing IP, device, or session; invalid target combinations and empty reasons are rejected. Confirm expiry and revocation timestamps can be recorded.",
+                    "structure": {
+                        "table": "security_blocks",
+                        "operation": "create",
+                        "columns": [
+                            {
+                                "name": "id",
+                                "type": "bigint",
+                                "nullable": false,
+                                "primaryKey": true,
+                                "identity": "generated always"
+                            },
+                            {
+                                "name": "ip_id",
+                                "type": "bigint",
+                                "nullable": true,
+                                "references": {
+                                    "table": "ips",
+                                    "column": "id",
+                                    "onDelete": "cascade"
+                                }
+                            },
+                            {
+                                "name": "device_id",
+                                "type": "bigint",
+                                "nullable": true,
+                                "references": {
+                                    "table": "devices",
+                                    "column": "id",
+                                    "onDelete": "cascade"
+                                }
+                            },
+                            {
+                                "name": "session_id",
+                                "type": "bigint",
+                                "nullable": true,
+                                "references": {
+                                    "table": "auth_sessions",
+                                    "column": "id",
+                                    "onDelete": "cascade"
+                                }
+                            },
+                            {
+                                "name": "reason",
+                                "type": "text",
+                                "nullable": false
+                            },
+                            {
+                                "name": "created_at",
+                                "type": "timestamptz",
+                                "nullable": false,
+                                "default": "now()"
+                            },
+                            {
+                                "name": "expires_at",
+                                "type": "timestamptz",
+                                "nullable": true
+                            },
+                            {
+                                "name": "revoked_at",
+                                "type": "timestamptz",
+                                "nullable": true
+                            }
+                        ],
+                        "constraints": [
+                            "num_nonnulls(ip_id, device_id, session_id) = 1",
+                            "length(trim(reason)) > 0",
+                            "expires_at IS NULL OR expires_at > created_at",
+                            "session_id IS NULL OR expires_at IS NULL"
+                        ],
+                        "indexes": [
+                            {
+                                "columns": ["ip_id"]
+                            },
+                            {
+                                "columns": ["device_id"]
+                            },
+                            {
+                                "columns": ["session_id"]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": "persist-device-bound-login-sessions",
+                    "title": "Issue server-generated device and session tokens in secure cookies after successful login, persist their hashes, check the device-session match on protected requests, and revoke sessions on logout and password reset using existing routes",
+                    "version": "0.3.7",
+                    "type": "backend",
+                    "changeType": "update",
+                    "done": false,
+                    "verification": "On web, Android, and iOS, sign in and restart the server: the session remains valid for the same device. Missing or mismatched device cookies return the user to login; logout and password reset invalidate sessions. Verify IP changes alone do not end the session."
+                },
+                {
+                    "id": "enforce-security-blocks",
+                    "title": "Check active IP and device blocks on existing authentication and protected requests, revoke a blocked device's sessions, and revoke a selected session without adding public management routes",
+                    "version": "0.3.8",
+                    "type": "backend",
+                    "changeType": "update",
+                    "done": false,
+                    "verification": "Record a temporary IP block in the development database and confirm requests are rejected until it expires or is lifted. Block a device and confirm its sessions stop while other devices remain signed in. Revoke one session and confirm only that session ends."
+                },
+                {
+                    "id": "connect-device-metadata-on-login",
+                    "title": "Send platform and available OS version and model through the shared login API client, and retain both server-issued cookies across app restarts on web, Android, and iOS",
+                    "version": "0.3.9",
+                    "type": "frontend",
+                    "changeType": "update",
+                    "done": false,
+                    "verification": "On web, Android, and iOS, sign in, restart the app or browser and the server, and confirm the same account remains signed in. Check that an unavailable web hardware model is omitted and that logout requires a new login."
                 }
             ]
         }
