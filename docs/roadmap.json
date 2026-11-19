@@ -385,7 +385,7 @@
         {
             "version": "0.4.0",
             "title": "Create device, platform, IP, session, and security-block tables and enforce device-bound sessions",
-            "status": "in_progress",
+            "status": "completed",
             "tasks": [
                 {
                     "id": "create-platforms-table",
@@ -787,24 +787,49 @@
                     "changeType": "update",
                     "done": true,
                     "verification": "For each existing auth endpoint, a missing, invalid, expired, reused, or wrong-action Turnstile token returns the standard field error and creates or updates no device, IP link, account, recovery code, or session. A valid token proceeds through the existing response flow. A verifier outage returns a retryable service error without a device write. Native clients remain unsupported on these protected requests until their own verification methods are added."
-                },
+                }
+            ]
+        },
+        {
+            "version": "0.5.0",
+            "title": "Improve the user interface and remove unused UI elements",
+            "status": "not_started",
+            "tasks": [
                 {
-                    "id": "enforce-security-blocks",
-                    "title": "Check active IP and device blocks on existing authentication and protected requests, revoke a blocked device's sessions, and revoke a selected session without adding public management routes",
-                    "version": "0.3.8",
-                    "type": "backend",
-                    "changeType": "update",
+                    "id": "simplify-auth-navigation",
+                    "title": "Remove the dashboard preview link, decorative badge, and redundant text from authentication forms",
+                    "version": "0.4.1",
+                    "type": "frontend",
+                    "changeType": "remove",
                     "done": false,
-                    "verification": "Record a temporary IP block in the development database and confirm requests are rejected until it expires or is lifted. Block a device and confirm its sessions stop while other devices remain signed in. Revoke one session and confirm only that session ends."
+                    "verification": "Open login, signup, and password recovery. Check that the preview link and decorative labels are gone, signup and recovery are reachable from login, and the recovery instructions remain visible."
                 },
                 {
-                    "id": "connect-device-metadata-on-login",
-                    "title": "Send platform and available OS version and model through the shared login, signup, and forgot-password API calls, accept the server-issued device cookie on each flow, and retain device and session cookies across app restarts on web, Android, and iOS",
-                    "version": "0.3.9",
+                    "id": "improve-auth-form-feedback",
+                    "title": "Improve field errors and submission feedback on authentication forms",
+                    "version": "0.4.2",
                     "type": "frontend",
                     "changeType": "update",
                     "done": false,
-                    "verification": "On web, Android, and iOS, begin with any of login, signup, or forgot-password and confirm later requests reuse the same device. Sign in, restart the app or browser and the server, and confirm the account remains signed in. An unavailable web hardware model is omitted, and logout requires a new login without creating a new device."
+                    "verification": "Enter an invalid email and mismatched passwords. Check that each error appears beside its field, correcting it clears stale feedback, and submitting valid input shows progress and prevents duplicate submissions."
+                },
+                {
+                    "id": "improve-responsive-layouts",
+                    "title": "Improve authentication and profile layouts across phone, tablet, and desktop widths",
+                    "version": "0.4.3",
+                    "type": "frontend",
+                    "changeType": "update",
+                    "done": false,
+                    "verification": "Check signup, recovery, and profile on narrow and wide screens. On a phone, open the keyboard in a form and confirm the focused field and submit button remain reachable. On web, confirm no horizontal page scrolling is needed."
+                },
+                {
+                    "id": "remove-unused-ui-code",
+                    "title": "Remove components and styles confirmed unused across web, Android, and iOS",
+                    "version": "0.4.4",
+                    "type": "frontend",
+                    "changeType": "remove",
+                    "done": false,
+                    "verification": "Review removed components and styles for remaining references, including platform-specific imports. Run client type checks and builds for web, Android, and iOS, then confirm the authentication and profile screens still open on each platform."
                 }
             ]
         }
