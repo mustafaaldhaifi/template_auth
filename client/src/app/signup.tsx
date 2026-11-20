@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react';
 import {
-  Pressable,
   Platform,
   ScrollView,
   Text,
@@ -8,6 +7,7 @@ import {
 } from 'react-native';
 import AuthInput from '../components/AuthInput';
 import AuthNavigation from '../components/AuthNavigation';
+import AuthSubmitButton from '../components/AuthSubmitButton';
 import TurnstileVerification from '../components/TurnstileVerification';
 import type { TurnstileVerificationHandle } from '../components/TurnstileVerification.types';
 import { ApiRequestError } from '../api/client';
@@ -78,16 +78,22 @@ export default function SignupPage() {
   /**
    * Updates one field while clearing feedback that is now stale.
    * 1. Save the new field value.
-   * 2. Clear its error and the previous submit result.
+   * 2. Refresh password confirmation feedback and clear the previous result.
    */
   function updateField(field: SignupField, value: string) {
     // STEP 1: Save the edit without changing the other fields.
     setValues((current) => ({ ...current, [field]: value }));
 
-    // STEP 2: Remove feedback that no longer describes the draft.
+    // STEP 2: Keep a confirmation error aligned with the current password pair.
     setErrors((current) => {
       const next = { ...current };
       delete next[field];
+      if (field === 'password' && values.confirmPassword) {
+        if (values.confirmPassword !== value) next.confirmPassword = 'Passwords must match.';
+        else delete next.confirmPassword;
+      } else if (field === 'confirmPassword' && current.confirmPassword && value !== values.password) {
+        next.confirmPassword = 'Passwords must match.';
+      }
       return next;
     });
     setFeedback(null);
@@ -160,9 +166,7 @@ export default function SignupPage() {
 
           <TurnstileVerification action="signup" ref={verificationRef} onTokenChange={setVerificationToken} />
 
-          <Pressable accessibilityRole="button" accessibilityState={{ disabled: isSubmitting || (Platform.OS === 'web' && !verificationToken), busy: isSubmitting }} disabled={isSubmitting || (Platform.OS === 'web' && !verificationToken)} onPress={handleSubmit} style={({ pressed }) => [authStyles.button, (isSubmitting || (Platform.OS === 'web' && !verificationToken)) && authStyles.buttonDisabled, pressed && authStyles.buttonPressed]}>
-            <Text style={authStyles.buttonText}>{isSubmitting ? 'Creating account...' : 'Create account'}</Text>
-          </Pressable>
+          <AuthSubmitButton label="Create account" pendingLabel="Creating account..." isSubmitting={isSubmitting} disabled={Platform.OS === 'web' && !verificationToken} onPress={handleSubmit} />
           {feedback ? <Text accessibilityRole="alert" style={[authStyles.result, feedback.kind === 'error' && authStyles.resultError]}>{feedback.message}</Text> : null}
         </View>
         <AuthNavigation current="signup" />

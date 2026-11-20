@@ -1,5 +1,6 @@
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import AuthInput from './AuthInput';
+import AuthSubmitButton from './AuthSubmitButton';
 import { authStyles } from '../theme/authStyles';
 
 export type VerificationCodeFeedback = {
@@ -40,19 +41,7 @@ export default function VerificationCodeForm({
         editable={!isSubmitting}
       />
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ disabled: isSubmitting, busy: isSubmitting }}
-        disabled={isSubmitting}
-        onPress={onVerify}
-        style={({ pressed }) => [
-          authStyles.button,
-          isSubmitting && authStyles.buttonDisabled,
-          pressed && authStyles.buttonPressed,
-        ]}
-      >
-        <Text style={authStyles.buttonText}>{isSubmitting ? 'Verifying...' : 'Verify code'}</Text>
-      </Pressable>
+      <AuthSubmitButton label="Verify code" pendingLabel="Verifying..." isSubmitting={isSubmitting} onPress={onVerify} />
       {feedback ? (
         <Text accessibilityRole="alert" style={[authStyles.result, feedback.kind === 'error' && authStyles.resultError]}>
           {feedback.message}

@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { Platform, ScrollView, Text, View } from 'react-native';
 import { ApiRequestError } from '../api/client';
 import { requestPasswordRecoveryCode } from '../api/passwordRecovery';
 import AuthInput from '../components/AuthInput';
 import AuthNavigation from '../components/AuthNavigation';
+import AuthSubmitButton from '../components/AuthSubmitButton';
 import TurnstileVerification from '../components/TurnstileVerification';
 import type { TurnstileVerificationHandle } from '../components/TurnstileVerification.types';
 import { useRecoveryFlow } from '../features/passwordRecovery/RecoveryFlowContext';
@@ -102,15 +103,7 @@ export default function ForgotPasswordPage() {
 
           <TurnstileVerification action="forgot_password" ref={verificationRef} onTokenChange={setVerificationToken} />
 
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ disabled: isSubmitting || (Platform.OS === 'web' && !verificationToken), busy: isSubmitting }}
-            disabled={isSubmitting || (Platform.OS === 'web' && !verificationToken)}
-            onPress={handleSendRecoveryCode}
-            style={({ pressed }) => [authStyles.button, (isSubmitting || (Platform.OS === 'web' && !verificationToken)) && authStyles.buttonDisabled, pressed && authStyles.buttonPressed]}
-          >
-            <Text style={authStyles.buttonText}>{isSubmitting ? 'Sending...' : 'Send recovery code'}</Text>
-          </Pressable>
+          <AuthSubmitButton label="Send recovery code" pendingLabel="Sending..." isSubmitting={isSubmitting} disabled={Platform.OS === 'web' && !verificationToken} onPress={handleSendRecoveryCode} />
           {result ? <Text accessibilityRole="alert" style={[authStyles.result, authStyles.resultError]}>{result}</Text> : null}
         </View>
         <AuthNavigation current="forgot-password" />

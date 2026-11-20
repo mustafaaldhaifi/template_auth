@@ -810,7 +810,7 @@
                     "version": "0.4.2",
                     "type": "frontend",
                     "changeType": "update",
-                    "done": false,
+                    "done": true,
                     "verification": "Enter an invalid email and mismatched passwords. Check that each error appears beside its field, correcting it clears stale feedback, and submitting valid input shows progress and prevents duplicate submissions."
                 },
                 {

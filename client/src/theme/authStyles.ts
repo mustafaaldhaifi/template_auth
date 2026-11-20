@@ -8,6 +8,7 @@ export const authStyles = StyleSheet.create({
   subtitle: { color: authColors.muted, fontSize: 15, lineHeight: 22, marginTop: 10 },
   form: { marginTop: 28 },
   button: { alignItems: 'center', justifyContent: 'center', minHeight: 50, marginTop: 6, backgroundColor: authColors.accent, borderRadius: 10 },
+  buttonContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   buttonPressed: { opacity: 0.85 },
   buttonDisabled: { opacity: 0.6 },
   buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },

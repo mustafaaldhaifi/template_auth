@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { Platform, ScrollView, Text, View } from 'react-native';
 import AuthInput from '../components/AuthInput';
 import AuthNavigation from '../components/AuthNavigation';
+import AuthSubmitButton from '../components/AuthSubmitButton';
 import TurnstileVerification from '../components/TurnstileVerification';
 import type { TurnstileVerificationHandle } from '../components/TurnstileVerification.types';
 import { ApiRequestError } from '../api/client';
@@ -149,9 +150,7 @@ export default function LoginPage() {
 
           <TurnstileVerification action="login" ref={verificationRef} onTokenChange={setVerificationToken} />
 
-          <Pressable accessibilityRole="button" accessibilityState={{ disabled: isSubmitting || (Platform.OS === 'web' && !verificationToken), busy: isSubmitting }} disabled={isSubmitting || (Platform.OS === 'web' && !verificationToken)} onPress={handleSubmit} style={({ pressed }) => [authStyles.button, (isSubmitting || (Platform.OS === 'web' && !verificationToken)) && authStyles.buttonDisabled, pressed && authStyles.buttonPressed]}>
-            <Text style={authStyles.buttonText}>{isSubmitting ? 'Logging in...' : 'Log in'}</Text>
-          </Pressable>
+          <AuthSubmitButton label="Log in" pendingLabel="Logging in..." isSubmitting={isSubmitting} disabled={Platform.OS === 'web' && !verificationToken} onPress={handleSubmit} />
           {result ? <Text accessibilityRole="alert" style={[authStyles.result, authStyles.resultError]}>{result}</Text> : null}
         </View>
         <AuthNavigation current="login" />

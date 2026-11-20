@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
 import { Link, useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ApiRequestError } from '../api/client';
 import { saveRecoveredPassword } from '../api/passwordRecovery';
 import AuthInput from '../components/AuthInput';
+import AuthSubmitButton from '../components/AuthSubmitButton';
 import { useRecoveryFlow } from '../features/passwordRecovery/RecoveryFlowContext';
 import { authColors } from '../theme/authColors';
 import { authStyles } from '../theme/authStyles';
@@ -50,12 +51,25 @@ export default function ResetPasswordPage() {
   const router = useRouter();
   const recovery = useRecoveryFlow();
 
-  /** Saves a field edit and clears feedback that described its old value. */
+  /**
+   * Updates a password field without leaving an outdated mismatch error.
+   * 1. Save the edited value.
+   * 2. Refresh confirmation feedback and clear the previous result.
+   */
   function updateField(field: PasswordField, value: string) {
+    // STEP 1: Preserve the other password field.
     setValues((current) => ({ ...current, [field]: value }));
+
+    // STEP 2: Recheck confirmation when either password field changes.
     setErrors((current) => {
       const next = { ...current };
       delete next[field];
+      if (field === 'password' && values.confirmPassword) {
+        if (values.confirmPassword !== value) next.confirmPassword = 'Passwords must match.';
+        else delete next.confirmPassword;
+      } else if (field === 'confirmPassword' && current.confirmPassword && value !== values.password) {
+        next.confirmPassword = 'Passwords must match.';
+      }
       return next;
     });
     setFeedback('');
@@ -132,15 +146,7 @@ export default function ResetPasswordPage() {
             editable={!isSubmitting}
           />
 
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ disabled: isSubmitting, busy: isSubmitting }}
-            disabled={isSubmitting}
-            onPress={handleSavePassword}
-            style={({ pressed }) => [authStyles.button, isSubmitting && authStyles.buttonDisabled, pressed && authStyles.buttonPressed]}
-          >
-            <Text style={authStyles.buttonText}>{isSubmitting ? 'Saving...' : 'Save new password'}</Text>
-          </Pressable>
+          <AuthSubmitButton label="Save new password" pendingLabel="Saving..." isSubmitting={isSubmitting} onPress={handleSavePassword} />
           {feedback ? (
             <Text accessibilityRole="alert" style={[authStyles.result, authStyles.resultError]}>{feedback}</Text>
           ) : null}
