@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Platform, ScrollView, Text, View } from 'react-native';
+import { Platform, Text, View } from 'react-native';
 import { ApiRequestError } from '../api/client';
 import { requestPasswordRecoveryCode } from '../api/passwordRecovery';
 import AuthInput from '../components/AuthInput';
 import AuthNavigation from '../components/AuthNavigation';
+import AuthScreen from '../components/AuthScreen';
 import AuthSubmitButton from '../components/AuthSubmitButton';
 import TurnstileVerification from '../components/TurnstileVerification';
 import type { TurnstileVerificationHandle } from '../components/TurnstileVerification.types';
@@ -85,10 +86,7 @@ export default function ForgotPasswordPage() {
 
   // STEP 3: Keep request and field feedback on the same form.
   return (
-    <ScrollView contentContainerStyle={authStyles.page} keyboardShouldPersistTaps="handled">
-      <View style={authStyles.card}>
-        <Text style={authStyles.title}>Forgot your password?</Text>
-        <Text style={authStyles.subtitle}>Enter your email address to receive an 8-digit recovery code.</Text>
+    <AuthScreen title="Forgot your password?" subtitle="Enter your email address to receive an 8-digit recovery code.">
 
         <View style={authStyles.form}>
           <AuthInput
@@ -107,7 +105,6 @@ export default function ForgotPasswordPage() {
           {result ? <Text accessibilityRole="alert" style={[authStyles.result, authStyles.resultError]}>{result}</Text> : null}
         </View>
         <AuthNavigation current="forgot-password" />
-      </View>
-    </ScrollView>
+    </AuthScreen>
   );
 }

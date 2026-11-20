@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import AccountStatus from '../components/AccountStatus';
 import AppNavigation from '../components/AppNavigation';
 import { useAuthenticatedUser } from '../hooks/useAuthenticatedUser';
@@ -12,6 +12,8 @@ import { authColors } from '../theme/authColors';
  * 3. Display the account's first name, last name, and email.
  */
 export default function ProfilePage() {
+  const { width } = useWindowDimensions();
+  const compact = width < 600;
   const { state, retry } = useAuthenticatedUser();
   const { handleLogout, logoutPending, logoutError } = useLogout();
 
@@ -31,18 +33,18 @@ export default function ProfilePage() {
   const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 
   return (
-    <ScrollView contentContainerStyle={styles.page}>
+    <ScrollView contentContainerStyle={[styles.page, compact && styles.pageCompact]}>
       <View style={styles.content}>
         <AppNavigation current="profile" onLogout={handleLogout} logoutPending={logoutPending} />
         {logoutError ? <Text accessibilityRole="alert" style={styles.logoutError}>{logoutError}</Text> : null}
 
         <View style={styles.hero}>
           <Text style={styles.eyebrow}>PROFILE</Text>
-          <Text style={styles.title}>Your profile</Text>
+          <Text style={[styles.title, compact && styles.titleCompact]}>Your profile</Text>
           <Text style={styles.subtitle}>Your account details.</Text>
         </View>
 
-        <View style={styles.profileCard}>
+        <View style={[styles.profileCard, compact && styles.profileCardCompact]}>
           <View style={styles.profileHeader}>
             <View style={styles.avatar}><Text style={styles.avatarText}>{initials}</Text></View>
             <View style={styles.identity}>
@@ -66,20 +68,23 @@ export default function ProfilePage() {
 
 const styles = StyleSheet.create({
   page: { flexGrow: 1, backgroundColor: authColors.background, paddingHorizontal: 20, paddingVertical: 42 },
+  pageCompact: { paddingHorizontal: 12, paddingVertical: 24 },
   content: { width: '100%', maxWidth: 980, alignSelf: 'center' },
   logoutError: { color: authColors.error, fontSize: 14, marginBottom: 20 },
   hero: { marginBottom: 28 },
   eyebrow: { color: authColors.accent, fontSize: 12, fontWeight: '700', letterSpacing: 2, marginBottom: 11 },
   title: { color: authColors.ink, fontSize: 38, lineHeight: 46, fontWeight: '700' },
+  titleCompact: { fontSize: 30, lineHeight: 38 },
   subtitle: { color: authColors.muted, fontSize: 16, lineHeight: 24, maxWidth: 590, marginTop: 12 },
   profileCard: { width: '100%', maxWidth: 720, backgroundColor: authColors.card, borderColor: authColors.border, borderWidth: 1, borderRadius: 18, padding: 24 },
+  profileCardCompact: { padding: 18 },
   profileHeader: { flexDirection: 'row', alignItems: 'center', paddingBottom: 24 },
   avatar: { width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E4F1E9', marginRight: 16 },
   avatarText: { color: authColors.accent, fontSize: 20, fontWeight: '700' },
   identity: { flex: 1 },
-  name: { color: authColors.ink, fontSize: 23, fontWeight: '700' },
+  name: { color: authColors.ink, fontSize: 23, fontWeight: '700', flexShrink: 1 },
   details: { borderTopColor: authColors.border, borderTopWidth: 1 },
   detailRow: { paddingVertical: 17, borderBottomColor: authColors.border, borderBottomWidth: 1 },
   detailLabel: { color: authColors.muted, fontSize: 13, fontWeight: '600', marginBottom: 6 },
-  detailValue: { color: authColors.ink, fontSize: 16, lineHeight: 23 },
+  detailValue: { color: authColors.ink, fontSize: 16, lineHeight: 23, flexShrink: 1 },
 });

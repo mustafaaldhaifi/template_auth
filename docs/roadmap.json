@@ -819,7 +819,7 @@
                     "version": "0.4.3",
                     "type": "frontend",
                     "changeType": "update",
-                    "done": false,
+                    "done": true,
                     "verification": "Check signup, recovery, and profile on narrow and wide screens. On a phone, open the keyboard in a form and confirm the focused field and submit button remain reachable. On web, confirm no horizontal page scrolling is needed."
                 },
                 {

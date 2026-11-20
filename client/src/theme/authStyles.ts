@@ -2,9 +2,13 @@ import { StyleSheet } from 'react-native';
 import { authColors } from './authColors';
 
 export const authStyles = StyleSheet.create({
+  screen: { flex: 1 },
   page: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: authColors.background, paddingHorizontal: 20, paddingVertical: 48 },
+  pageCompact: { paddingHorizontal: 12, paddingVertical: 24 },
   card: { width: '100%', maxWidth: 480, paddingHorizontal: 28, paddingVertical: 34, backgroundColor: authColors.card, borderColor: authColors.border, borderWidth: 1, borderRadius: 24, shadowColor: authColors.ink, shadowOpacity: 0.07, shadowRadius: 24, shadowOffset: { width: 0, height: 8 }, elevation: 3 },
+  cardCompact: { paddingHorizontal: 18, paddingVertical: 24, borderRadius: 18 },
   title: { color: authColors.ink, fontSize: 30, fontWeight: '700', lineHeight: 36 },
+  titleCompact: { fontSize: 26, lineHeight: 32 },
   subtitle: { color: authColors.muted, fontSize: 15, lineHeight: 22, marginTop: 10 },
   form: { marginTop: 28 },
   button: { alignItems: 'center', justifyContent: 'center', minHeight: 50, marginTop: 6, backgroundColor: authColors.accent, borderRadius: 10 },

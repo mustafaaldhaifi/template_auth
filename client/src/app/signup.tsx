@@ -1,12 +1,12 @@
 import { useRef, useState } from 'react';
 import {
   Platform,
-  ScrollView,
   Text,
   View,
 } from 'react-native';
 import AuthInput from '../components/AuthInput';
 import AuthNavigation from '../components/AuthNavigation';
+import AuthScreen from '../components/AuthScreen';
 import AuthSubmitButton from '../components/AuthSubmitButton';
 import TurnstileVerification from '../components/TurnstileVerification';
 import type { TurnstileVerificationHandle } from '../components/TurnstileVerification.types';
@@ -153,9 +153,7 @@ export default function SignupPage() {
 
   // STEP 3: Render the same responsive form on every supported platform.
   return (
-    <ScrollView contentContainerStyle={authStyles.page} keyboardShouldPersistTaps="handled">
-      <View style={authStyles.card}>
-        <Text style={authStyles.title}>Create your account</Text>
+    <AuthScreen title="Create your account">
 
         <View style={authStyles.form}>
           <AuthInput label="First name" value={values.firstName} onChangeText={(text) => updateField('firstName', text)} error={errors.firstName} autoComplete="given-name" autoCapitalize="words" editable={!isSubmitting} />
@@ -170,7 +168,6 @@ export default function SignupPage() {
           {feedback ? <Text accessibilityRole="alert" style={[authStyles.result, feedback.kind === 'error' && authStyles.resultError]}>{feedback.message}</Text> : null}
         </View>
         <AuthNavigation current="signup" />
-      </View>
-    </ScrollView>
+    </AuthScreen>
   );
 }

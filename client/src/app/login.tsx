@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Platform, ScrollView, Text, View } from 'react-native';
+import { Platform, Text, View } from 'react-native';
 import AuthInput from '../components/AuthInput';
 import AuthNavigation from '../components/AuthNavigation';
+import AuthScreen from '../components/AuthScreen';
 import AuthSubmitButton from '../components/AuthSubmitButton';
 import TurnstileVerification from '../components/TurnstileVerification';
 import type { TurnstileVerificationHandle } from '../components/TurnstileVerification.types';
@@ -119,9 +120,7 @@ export default function LoginPage() {
 
   // STEP 3: Render the login page with the shared authentication design.
   return (
-    <ScrollView contentContainerStyle={authStyles.page} keyboardShouldPersistTaps="handled">
-      <View style={authStyles.card}>
-        <Text style={authStyles.title}>Log in to your account</Text>
+    <AuthScreen title="Log in to your account">
         {recovered === '1' && !result ? (
           <Text accessibilityRole="alert" style={authStyles.result}>
             Password updated. Sign in with your new password.
@@ -154,7 +153,6 @@ export default function LoginPage() {
           {result ? <Text accessibilityRole="alert" style={[authStyles.result, authStyles.resultError]}>{result}</Text> : null}
         </View>
         <AuthNavigation current="login" />
-      </View>
-    </ScrollView>
+    </AuthScreen>
   );
 }

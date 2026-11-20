@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
 import { Link, useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import { ApiRequestError } from '../api/client';
 import { verifyPasswordRecoveryCode } from '../api/passwordRecovery';
 import VerificationCodeForm, { type VerificationCodeFeedback } from '../components/VerificationCodeForm';
+import AuthScreen from '../components/AuthScreen';
 import { useRecoveryFlow } from '../features/passwordRecovery/RecoveryFlowContext';
 import { authColors } from '../theme/authColors';
 import { authStyles } from '../theme/authStyles';
@@ -74,9 +75,7 @@ export default function VerifyResetCodePage() {
 
   // STEP 3: Keep code entry shared across delivery channels.
   return (
-    <ScrollView contentContainerStyle={authStyles.page} keyboardShouldPersistTaps="handled">
-      <View style={authStyles.card}>
-        <Text style={authStyles.title}>Enter verification code</Text>
+    <AuthScreen title="Enter verification code">
         {recovery.email ? (
           <>
             <Text style={authStyles.subtitle}>If an account uses {recovery.email}, an 8-digit code was sent to it.</Text>
@@ -94,8 +93,7 @@ export default function VerifyResetCodePage() {
           <Text style={authStyles.subtitle}>Enter your email address first to request a recovery code.</Text>
         )}
         <Link href="/forgot-password" style={styles.backLink}>Back to email address</Link>
-      </View>
-    </ScrollView>
+    </AuthScreen>
   );
 }
 

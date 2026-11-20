@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
 import { Link, useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { ApiRequestError } from '../api/client';
 import { saveRecoveredPassword } from '../api/passwordRecovery';
 import AuthInput from '../components/AuthInput';
+import AuthScreen from '../components/AuthScreen';
 import AuthSubmitButton from '../components/AuthSubmitButton';
 import { useRecoveryFlow } from '../features/passwordRecovery/RecoveryFlowContext';
 import { authColors } from '../theme/authColors';
@@ -119,12 +120,7 @@ export default function ResetPasswordPage() {
 
   // STEP 3: Keep the form responsive on web, Android, and iOS.
   return (
-    <ScrollView contentContainerStyle={authStyles.page} keyboardShouldPersistTaps="handled">
-      <View style={authStyles.card}>
-        <Text style={authStyles.title}>Set a new password</Text>
-        <Text style={authStyles.subtitle}>
-          {recovery.token ? 'Choose a new password and confirm it below.' : 'Verify a recovery code before setting a new password.'}
-        </Text>
+    <AuthScreen title="Set a new password" subtitle={recovery.token ? 'Choose a new password and confirm it below.' : 'Verify a recovery code before setting a new password.'}>
 
         {recovery.token ? <View style={authStyles.form}>
           <AuthInput
@@ -152,8 +148,7 @@ export default function ResetPasswordPage() {
           ) : null}
         </View> : null}
         <Link href="/forgot-password" style={styles.backLink}>Request another code</Link>
-      </View>
-    </ScrollView>
+    </AuthScreen>
   );
 }
 
