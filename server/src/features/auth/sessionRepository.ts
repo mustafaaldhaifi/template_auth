@@ -1,5 +1,6 @@
 import type { Transaction } from 'kysely';
 import { getDatabase, type DatabaseTables } from '@/lib/database';
+import { deviceLifetimeSeconds } from './authLifetime';
 
 /** Persists a device-bound session digest and returns its audit ID. */
 export async function insertSession(
@@ -33,6 +34,7 @@ export async function findActiveSessionUserId(
     .select(['session.user_id', 'session.id', 'session.device_id'])
     .where('session.token_hash', '=', tokenHash)
     .where('device.device_token_hash', '=', deviceTokenHash)
+    .where('device.last_seen_at', '>', new Date(Date.now() - deviceLifetimeSeconds * 1000))
     .where('session.revoked_at', 'is', null)
     .where('session.expires_at', '>', new Date())
     .executeTakeFirst();

@@ -3,13 +3,13 @@ import { hashOpaqueToken, isOpaqueToken, newOpaqueToken } from './authTokens';
 import { requestDeviceTokenHash } from './deviceStore';
 import { findActiveSessionUserId, insertSession, revokeSession } from './sessionRepository';
 import { noteRequestDevice, noteRequestSession } from '@/features/apiRequests/apiRequestHistory';
+import { sessionLifetimeSeconds } from './authLifetime';
 
-const sessionLifetimeSeconds = 60 * 60 * 24 * 7;
 const sessionCookieName = 'auth_session';
 
 /**
  * Creates an opaque persistent session only after successful authentication.
- * 1. Generate a fresh high-entropy token and fixed expiry.
+ * 1. Generate a fresh high-entropy token and initial inactivity expiry.
  * 2. Persist its digest with the authenticated user and device.
  * 3. Associate the new session ID with this request's audit record.
  */

@@ -2,6 +2,7 @@ import { authCorsHeaders } from '@/features/auth/authCors';
 import { verifyPasswordResetCode } from '@/features/auth/passwordResetRepository';
 import { createPasswordResetToken, getPasswordResetCodeSecret, hashPasswordResetToken, passwordResetLifetimeMinutes } from '@/features/auth/passwordResetToken';
 import { validateVerifyResetCodeInput } from '@/features/auth/passwordResetValidation';
+import { withAuthCookieRenewal } from '@/features/auth/authCookieRenewal';
 
 export function OPTIONS(request: Request): Response {
   return new Response(null, { status: 204, headers: authCorsHeaders(request) });
@@ -24,7 +25,7 @@ function invalidCode(headers: Record<string, string>): Response {
  * 2. Exchange the valid code for a short-lived bearer grant.
  * 3. Return the grant only after the database commits the exchange.
  */
-export async function POST(request: Request): Promise<Response> {
+async function handleVerifyResetCode(request: Request): Promise<Response> {
   const headers = { ...authCorsHeaders(request), 'Cache-Control': 'no-store' };
 
   // STEP 1: Reject malformed or field-invalid input before accessing storage.
@@ -65,4 +66,9 @@ export async function POST(request: Request): Promise<Response> {
       { status: 500, headers },
     );
   }
+}
+
+/** Renews eligible cookies only after a valid code is verified. */
+export function POST(request: Request): Promise<Response> {
+  return withAuthCookieRenewal(request, () => handleVerifyResetCode(request));
 }

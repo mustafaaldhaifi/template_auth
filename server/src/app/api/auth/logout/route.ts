@@ -2,6 +2,7 @@ import { authCorsHeaders } from '@/features/auth/authCors';
 import { expiredSessionCookie, getSessionUserId, invalidateSession, readSessionCookie } from '@/features/auth/sessionStore';
 import { withApiRequestHistory } from '@/features/apiRequests/apiRequestHistory';
 import { enforceApiRestriction } from '@/features/apiRequests/enforceApiRestriction';
+import { withAuthCookieRenewal } from '@/features/auth/authCookieRenewal';
 
 export function OPTIONS(request: Request): Response {
   return new Response(null, { status: 204, headers: authCorsHeaders(request) });
@@ -38,7 +39,7 @@ async function handleLogout(request: Request): Promise<Response> {
   }
 }
 
-/** Records the outcome of one logout request. */
+/** Renews the device when eligible and records the outcome of one logout request. */
 export function POST(request: Request): Promise<Response> {
-  return withApiRequestHistory(request, () => handleLogout(request));
+  return withApiRequestHistory(request, () => withAuthCookieRenewal(request, () => handleLogout(request)));
 }

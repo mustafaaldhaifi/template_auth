@@ -3,6 +3,7 @@ import { findCurrentUser } from '@/features/auth/currentUserRepository';
 import { getSessionUserId } from '@/features/auth/sessionStore';
 import { withApiRequestHistory } from '@/features/apiRequests/apiRequestHistory';
 import { enforceApiRestriction } from '@/features/apiRequests/enforceApiRestriction';
+import { withAuthCookieRenewal } from '@/features/auth/authCookieRenewal';
 
 export function OPTIONS(request: Request): Response {
   return new Response(null, { status: 204, headers: authCorsHeaders(request) });
@@ -52,7 +53,7 @@ async function handleCurrentUser(request: Request): Promise<Response> {
   }
 }
 
-/** Records the outcome of one current-user request. */
+/** Renews eligible cookies and records the outcome of one current-user request. */
 export function GET(request: Request): Promise<Response> {
-  return withApiRequestHistory(request, () => handleCurrentUser(request));
+  return withApiRequestHistory(request, () => withAuthCookieRenewal(request, () => handleCurrentUser(request)));
 }

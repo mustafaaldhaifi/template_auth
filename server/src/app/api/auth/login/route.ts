@@ -10,6 +10,7 @@ import { verifyAuthRequest } from '@/features/auth/requestVerification';
 import { createSession, sessionCookie } from '@/features/auth/sessionStore';
 import { markRequestVerificationPassed, withApiRequestHistory } from '@/features/apiRequests/apiRequestHistory';
 import { enforceApiRestriction } from '@/features/apiRequests/enforceApiRestriction';
+import { withAuthCookieRenewal } from '@/features/auth/authCookieRenewal';
 
 type LoginInput = { email: string; password: string };
 type LoginValidation =
@@ -144,7 +145,7 @@ async function handleLogin(request: Request): Promise<Response> {
   }
 }
 
-/** Records the outcome of one login request. */
+/** Renews eligible cookies and records the outcome of one login request. */
 export function POST(request: Request): Promise<Response> {
-  return withApiRequestHistory(request, () => handleLogin(request));
+  return withApiRequestHistory(request, () => withAuthCookieRenewal(request, () => handleLogin(request)));
 }

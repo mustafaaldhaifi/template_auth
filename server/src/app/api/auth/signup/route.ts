@@ -7,6 +7,7 @@ import { createSignupAccount } from '@/features/auth/signupRepository';
 import { validateSignupInput } from '@/features/auth/signupValidation';
 import { markRequestVerificationPassed, withApiRequestHistory } from '@/features/apiRequests/apiRequestHistory';
 import { enforceApiRestriction } from '@/features/apiRequests/enforceApiRestriction';
+import { withAuthCookieRenewal } from '@/features/auth/authCookieRenewal';
 
 export function OPTIONS(request: Request): Response {
   return new Response(null, { status: 204, headers: authCorsHeaders(request) });
@@ -99,7 +100,7 @@ async function handleSignup(request: Request): Promise<Response> {
   }
 }
 
-/** Records the outcome of one signup request. */
+/** Renews eligible cookies and records the outcome of one signup request. */
 export function POST(request: Request): Promise<Response> {
-  return withApiRequestHistory(request, () => handleSignup(request));
+  return withApiRequestHistory(request, () => withAuthCookieRenewal(request, () => handleSignup(request)));
 }

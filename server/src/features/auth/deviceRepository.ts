@@ -1,5 +1,6 @@
 import { sql, type Transaction } from 'kysely';
 import { getDatabase, type DatabaseTables } from '@/lib/database';
+import { deviceLifetimeSeconds } from './authLifetime';
 
 type PlatformCode = DatabaseTables['platforms']['code'];
 type DeviceMetadata = { platform: PlatformCode; osVersion: string | null; model: string | null };
@@ -14,6 +15,7 @@ export async function findDeviceByTokenHash(tokenHash: string): Promise<string |
   const row = await getDatabase().selectFrom('devices')
     .select('id')
     .where('device_token_hash', '=', tokenHash)
+    .where('last_seen_at', '>', new Date(Date.now() - deviceLifetimeSeconds * 1000))
     .executeTakeFirst();
   return row?.id ?? null;
 }
@@ -85,9 +87,9 @@ export async function createDevice(input: DeviceRegistration): Promise<{ id: str
 }
 
 /**
- * Refreshes an existing device and its observed IP together.
+ * Updates existing device metadata and its observed IP together.
  * 1. Resolve the current platform and optional IP.
- * 2. Refresh metadata and the device-IP association.
+ * 2. Update metadata and the device-IP association without extending device validity.
  */
 export async function touchDevice(
   id: string,
@@ -106,7 +108,6 @@ export async function touchDevice(
         platform_id: platformId,
         ...(metadata.osVersion ? { os_version: metadata.osVersion } : {}),
         ...(metadata.model ? { model: metadata.model } : {}),
-        last_seen_at: now,
       })
       .where('id', '=', id)
       .execute();

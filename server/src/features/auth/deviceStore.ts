@@ -3,9 +3,9 @@ import { createDevice, findDeviceByTokenHash, touchDevice } from './deviceReposi
 import { hashOpaqueToken, isOpaqueToken, newOpaqueToken } from './authTokens';
 import { trustedClientIp } from './clientIp';
 import { noteRequestDevice } from '@/features/apiRequests/apiRequestHistory';
+import { deviceLifetimeSeconds } from './authLifetime';
 
 const deviceCookieName = 'auth_device';
-const deviceLifetimeSeconds = 60 * 60 * 24 * 180;
 type PlatformCode = 'ios' | 'android' | 'web';
 export type DeviceIdentity = { id: string; ipId: string | null; cookie: string | null };
 
@@ -34,7 +34,7 @@ export function requestDeviceTokenHash(request: Request): string | null {
 /**
  * Reuses a known device or issues one on the first valid authentication request.
  * 1. Look up the incoming opaque cookie without treating its metadata as proof.
- * 2. Refresh the existing device and IP link, or atomically register a new device.
+ * 2. Update the existing device metadata and IP link, or register a new device.
  * 3. Note the persisted IDs for request history and issue a cookie only for a new token.
  */
 export async function resolveOrCreateDevice(request: Request): Promise<DeviceIdentity> {
@@ -61,4 +61,10 @@ export async function resolveOrCreateDevice(request: Request): Promise<DeviceIde
 /** Adds a newly issued device cookie to any successful or failed auth response. */
 export function withDeviceCookie(response: Response, identity: DeviceIdentity | null): Response {
   return appendAuthCookie(response, identity?.cookie ?? null);
+}
+
+/** Reissues a validated device token after a successful request. */
+export function refreshedDeviceCookie(request: Request): string | null {
+  const token = readAuthCookie(request, deviceCookieName);
+  return isOpaqueToken(token) ? authCookie(deviceCookieName, token, deviceLifetimeSeconds, request) : null;
 }

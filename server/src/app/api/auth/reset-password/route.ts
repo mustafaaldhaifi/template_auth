@@ -4,6 +4,7 @@ import { consumePasswordResetGrant, hasActivePasswordResetGrant } from '@/featur
 import { hashPasswordResetToken } from '@/features/auth/passwordResetToken';
 import { validateResetPasswordInput } from '@/features/auth/passwordResetValidation';
 import { expiredSessionCookie } from '@/features/auth/sessionStore';
+import { withAuthCookieRenewal } from '@/features/auth/authCookieRenewal';
 
 export function OPTIONS(request: Request): Response {
   return new Response(null, { status: 204, headers: authCorsHeaders(request) });
@@ -26,7 +27,7 @@ function invalidGrant(headers: Record<string, string>): Response {
  * 2. Verify the grant before hashing, then change the password atomically.
  * 3. Return an empty response after the transaction revokes account sessions.
  */
-export async function POST(request: Request): Promise<Response> {
+async function handleResetPassword(request: Request): Promise<Response> {
   const headers = { ...authCorsHeaders(request), 'Cache-Control': 'no-store' };
 
   // STEP 1: Keep malformed and field-specific errors in the standard API shape.
@@ -68,4 +69,9 @@ export async function POST(request: Request): Promise<Response> {
       { status: 500, headers },
     );
   }
+}
+
+/** Renews the device after a completed reset while preserving session revocation. */
+export function POST(request: Request): Promise<Response> {
+  return withAuthCookieRenewal(request, () => handleResetPassword(request));
 }

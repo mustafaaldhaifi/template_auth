@@ -1,3 +1,5 @@
+import { fetch } from 'expo/fetch';
+
 export class ApiRequestError extends Error {
   constructor(
     message: string,
@@ -26,7 +28,8 @@ export async function apiRequest<T>(path: string, options: RequestInit): Promise
   // STEP 2: Separate connection failures from responses returned by the server.
   let response: Response;
   try {
-    response = await fetch(`${baseUrl}${path}`, options);
+    // NOTE: Expo fetch uses the native cookie store on Android and iOS.
+    response = await fetch(`${baseUrl}${path}`, { ...options, credentials: 'include' });
   } catch {
     throw new ApiRequestError('Could not reach the server. Check your connection and try again.', 'NETWORK_ERROR');
   }

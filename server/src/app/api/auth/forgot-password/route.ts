@@ -8,6 +8,7 @@ import { validateForgotPasswordInput } from '@/features/auth/passwordResetValida
 import { verifyAuthRequest } from '@/features/auth/requestVerification';
 import { markRequestVerificationPassed, withApiRequestHistory } from '@/features/apiRequests/apiRequestHistory';
 import { enforceApiRestriction } from '@/features/apiRequests/enforceApiRestriction';
+import { withAuthCookieRenewal } from '@/features/auth/authCookieRenewal';
 
 export function OPTIONS(request: Request): Response {
   return new Response(null, { status: 204, headers: authCorsHeaders(request) });
@@ -101,7 +102,7 @@ async function handleForgotPassword(request: Request): Promise<Response> {
   }
 }
 
-/** Records the outcome of one password-recovery request. */
+/** Renews eligible cookies and records the outcome of one password-recovery request. */
 export function POST(request: Request): Promise<Response> {
-  return withApiRequestHistory(request, () => handleForgotPassword(request));
+  return withApiRequestHistory(request, () => withAuthCookieRenewal(request, () => handleForgotPassword(request)));
 }
