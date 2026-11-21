@@ -1,11 +1,12 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { trustedClientIp } from '@/features/auth/clientIp';
-import { insertRequestHistory } from './apiRequestHistoryRepository';
+import { completeReservedRequest, insertRequestHistory } from './apiRequestHistoryRepository';
 
 type RequestIdentity = {
   ipId: string | null;
   deviceId: string | null;
   sessionId: string | null;
+  reservationId: string | null;
   verificationPassed: boolean;
 };
 
@@ -32,6 +33,20 @@ export function noteRequestSession(sessionId: string): void {
   if (identity) identity.sessionId = sessionId;
 }
 
+/** Exposes only already validated identifiers to the route-limit check. */
+export function getRequestIdentity(): Pick<RequestIdentity, 'ipId' | 'deviceId' | 'sessionId' | 'verificationPassed'> | null {
+  return requestIdentity.getStore() ?? null;
+}
+
+/** Associates one atomic rate-limit reservation with the active request. */
+export function noteRequestReservation(id: string, ipId: string | null, deviceId: string | null): void {
+  const identity = requestIdentity.getStore();
+  if (!identity) return;
+  identity.reservationId = id;
+  identity.ipId = ipId;
+  identity.deviceId = deviceId;
+}
+
 /**
  * Persists one outcome without replacing the route's original response or error.
  * 1. Skip requests without a successful proof or validated session.
@@ -45,15 +60,20 @@ async function recordOutcome(request: Request, status: number, identity: Request
 
     // STEP 2: Persist only identifiers already established by the handler.
     const path = new URL(request.url).pathname;
-    await insertRequestHistory({
+    const entry = {
       method: request.method.toUpperCase(),
       path,
       ipId: identity.ipId,
       ipAddress: trustedClientIp(request),
       deviceId: identity.deviceId,
       sessionId: identity.sessionId,
-      status: status >= 200 && status < 300 ? 1 : 0,
-    });
+      status: status >= 200 && status < 300 ? 1 as const : 0 as const,
+    };
+    if (identity.reservationId) {
+      await completeReservedRequest(identity.reservationId, entry);
+    } else {
+      await insertRequestHistory(entry);
+    }
   } catch (error) {
     // STEP 3: Audit storage cannot change an already completed API result.
     console.error('Failed to record an API request.', error);
@@ -68,7 +88,13 @@ async function recordOutcome(request: Request, status: number, identity: Request
  */
 export function withApiRequestHistory(request: Request, handler: () => Response | Promise<Response>): Promise<Response> {
   // STEP 1: Keep identifiers isolated across concurrent requests.
-  const identity: RequestIdentity = { ipId: null, deviceId: null, sessionId: null, verificationPassed: false };
+  const identity: RequestIdentity = {
+    ipId: null,
+    deviceId: null,
+    sessionId: null,
+    reservationId: null,
+    verificationPassed: false,
+  };
   return requestIdentity.run(identity, async () => {
     // STEP 2: Run the existing route inside its own request context.
     let response: Response;

@@ -97,6 +97,14 @@ Set `SMTP_HOST`, `SMTP_FROM`, and `PASSWORD_RESET_CODE_SECRET` in the server env
 
 Codes and verified grants each expire after 10 minutes. The database stores a salted HMAC digest of the short code and a SHA-256 digest of the verified grant. The code migration marks earlier unused link tokens as consumed while preserving their rows. Verifying a code exchanges it for one grant, so the code cannot be reused. Consuming the grant, updating the password, and revoking other outstanding codes and all account sessions happen in one database transaction.
 
+## API request limits
+
+Apply the `0.5.1_01`, `0.5.1_02`, and `0.5.1_03` migrations before enabling request history or policies. Each row in `api_restrictions` selects one existing method and path through `api_id`. For example, a policy of `{"1":3}` allows three verified requests per rolling minute for each available identifier in `items`, such as `ARRAY['ip', 'device', 'session']`. Each time window and identifier is checked independently; missing identifiers are skipped. A fourth request receives HTTP 429, `TOO_MANY_REQUESTS`, and a `Retry-After` header. Blocked verified requests are also recorded and count toward the rolling limit.
+
+To test login limits by both IP and device in the development database, configure `{"1":3}` with `items = ARRAY['ip', 'device']`. The first verified request may not have a device ID yet, so its IP is checked immediately; the issued device ID is written to its history row and is counted on later requests from that device.
+
+Authentication requests are checked only after Turnstile succeeds. Protected account routes are checked only after validating the device-bound session. Routes without a configured policy continue without a limit. If a policy check cannot reach storage, the server returns HTTP 503 with `RESTRICTION_UNAVAILABLE` instead of bypassing a configured limit.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 ## Learn More

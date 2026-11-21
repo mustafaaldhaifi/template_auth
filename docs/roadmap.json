@@ -904,7 +904,7 @@
                     "version": "0.5.3",
                     "type": "backend",
                     "changeType": "update",
-                    "done": false,
+                    "done": true,
                     "verification": "With a login policy of {\"1\":3}, the first three requests within a minute pass and the fourth receives the standard 429 error; each configured item is counted independently and absent session IDs are skipped."
                 },
                 {

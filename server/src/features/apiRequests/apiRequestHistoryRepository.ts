@@ -47,3 +47,15 @@ export async function insertRequestHistory(entry: RequestHistoryEntry): Promise<
     })
     .execute();
 }
+
+/** Completes the previously reserved request with its final outcome and IDs. */
+export async function completeReservedRequest(
+  id: string,
+  entry: Pick<RequestHistoryEntry, 'ipId' | 'ipAddress' | 'deviceId' | 'sessionId' | 'status'>,
+): Promise<void> {
+  const ipId = entry.ipId ?? await findKnownIpId(entry.ipAddress);
+  await getDatabase().updateTable('api_request_history')
+    .set({ ip_id: ipId, device_id: entry.deviceId, session_id: entry.sessionId, status: entry.status })
+    .where('id', '=', id)
+    .executeTakeFirstOrThrow();
+}

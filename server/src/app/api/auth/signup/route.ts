@@ -6,6 +6,7 @@ import { verifyAuthRequest } from '@/features/auth/requestVerification';
 import { createSignupAccount } from '@/features/auth/signupRepository';
 import { validateSignupInput } from '@/features/auth/signupValidation';
 import { markRequestVerificationPassed, withApiRequestHistory } from '@/features/apiRequests/apiRequestHistory';
+import { enforceApiRestriction } from '@/features/apiRequests/enforceApiRestriction';
 
 export function OPTIONS(request: Request): Response {
   return new Response(null, { status: 204, headers: authCorsHeaders(request) });
@@ -15,8 +16,9 @@ export function OPTIONS(request: Request): Response {
  * Validates a sign-up request and creates its account records.
  * 1. Parse and validate the JSON body, returning field errors when needed.
  * 2. Verify the web proof before issuing or reusing a device.
- * 3. Hash the password and create all account rows in one transaction.
- * 4. Return account data or a stable duplicate-email/server error response.
+ * 3. Enforce configured limits before device or account work.
+ * 4. Hash the password and create all account rows in one transaction.
+ * 5. Return account data or a stable duplicate-email/server error response.
  */
 async function handleSignup(request: Request): Promise<Response> {
   const headers = { ...authCorsHeaders(request), 'Cache-Control': 'no-store' };
@@ -50,14 +52,17 @@ async function handleSignup(request: Request): Promise<Response> {
     return Response.json({ error: verification.error }, { status: verification.status, headers });
   }
   markRequestVerificationPassed();
+  // STEP 3: Block over-limit verified requests before issuing a device.
+  const restriction = await enforceApiRestriction(request, headers);
+  if (restriction) return restriction;
 
-  // STEP 3: A verified first request gets a device whether signup succeeds or fails.
+  // STEP 4: A verified first request gets a device whether signup succeeds or fails.
   const { firstName, lastName, email, password } = validation.value;
   let device: DeviceIdentity | null = null;
   try {
     device = await resolveOrCreateDevice(request);
 
-    // STEP 4: Keep all account writes in their existing transaction.
+    // STEP 5: Keep all account writes in their existing transaction.
     const passwordHash = await hashPassword(password);
     const id = await createSignupAccount({ firstName, lastName, email, passwordHash });
     return withDeviceCookie(Response.json(
@@ -71,7 +76,7 @@ async function handleSignup(request: Request): Promise<Response> {
         { status: 429, headers },
       );
     }
-    // STEP 5: Translate the email constraint without exposing database details.
+    // STEP 6: Translate the email constraint without exposing database details.
     if (error && typeof error === 'object' && 'code' in error &&
       'constraint' in error && error.code === '23505' &&
       error.constraint === 'user_emails_email_key') {

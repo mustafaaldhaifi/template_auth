@@ -9,6 +9,7 @@ import { verifyPassword } from '@/features/auth/passwordVerify';
 import { verifyAuthRequest } from '@/features/auth/requestVerification';
 import { createSession, sessionCookie } from '@/features/auth/sessionStore';
 import { markRequestVerificationPassed, withApiRequestHistory } from '@/features/apiRequests/apiRequestHistory';
+import { enforceApiRestriction } from '@/features/apiRequests/enforceApiRestriction';
 
 type LoginInput = { email: string; password: string };
 type LoginValidation =
@@ -96,7 +97,8 @@ export function OPTIONS(request: Request): Response {
  * Validates credentials and creates a persistent device-bound session.
  * 1. Parse the request and return clear input errors.
  * 2. Verify the web proof before looking up or issuing a device.
- * 3. Authenticate without exposing account existence and create a session only on success.
+ * 3. Enforce configured request limits before device or account work.
+ * 4. Authenticate without exposing account existence and create a session only on success.
  */
 async function handleLogin(request: Request): Promise<Response> {
   const headers = { ...authCorsHeaders(request), 'Cache-Control': 'no-store' };
@@ -118,13 +120,16 @@ async function handleLogin(request: Request): Promise<Response> {
     return Response.json({ error: verification.error }, { status: verification.status, headers });
   }
   markRequestVerificationPassed();
+  // STEP 3: A verified blocked request is recorded without touching device storage.
+  const restriction = await enforceApiRestriction(request, headers);
+  if (restriction) return restriction;
 
-  // STEP 3: A verified but failed first attempt still receives a device cookie.
+  // STEP 4: A verified but failed first attempt still receives a device cookie.
   let device: DeviceIdentity | null = null;
   try {
     device = await resolveOrCreateDevice(request);
 
-    // STEP 4: Use a generic response for missing accounts and wrong passwords.
+    // STEP 5: Use a generic response for missing accounts and wrong passwords.
     const account = await authenticateLogin(validation.value);
     if (!account) {
       return withDeviceCookie(loginError(401, 'INVALID_CREDENTIALS', 'Email or password is incorrect.', headers), device);

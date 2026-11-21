@@ -15,6 +15,7 @@ export function authCorsHeaders(request: Request): Record<string, string> {
     'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, X-Client-Platform, X-Client-Os-Version, X-Client-Model',
+    'Access-Control-Expose-Headers': 'Retry-After',
     Vary: 'Origin',
   };
 }
