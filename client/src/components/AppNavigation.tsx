@@ -4,7 +4,7 @@ import { authColors } from '../theme/authColors';
 
 type AppNavigationProps = {
   current: 'dashboard' | 'profile';
-  onLogout?: () => void;
+  onLogout: () => void;
   logoutPending?: boolean;
 };
 
@@ -34,17 +34,9 @@ export default function AppNavigation({ current, onLogout, logoutPending = false
             <Text style={[styles.linkText, current === 'profile' && styles.linkTextActive]}>Profile</Text>
           </Pressable>
         </Link>
-        {onLogout ? (
-          <Pressable accessibilityLabel="Log out" accessibilityRole="button" accessibilityState={{ disabled: logoutPending, busy: logoutPending }} disabled={logoutPending} onPress={onLogout} style={styles.link}>
-            <Text style={styles.linkText}>{logoutPending ? 'Logging out...' : 'Log out'}</Text>
-          </Pressable>
-        ) : (
-          <Link href="/login" asChild>
-            <Pressable accessibilityLabel="Log in" style={styles.link}>
-              <Text style={styles.linkText}>Log in</Text>
-            </Pressable>
-          </Link>
-        )}
+        <Pressable accessibilityLabel="Log out" accessibilityRole="button" accessibilityState={{ disabled: logoutPending, busy: logoutPending }} disabled={logoutPending} onPress={onLogout} style={styles.link}>
+          <Text style={styles.linkText}>{logoutPending ? 'Logging out...' : 'Log out'}</Text>
+        </Pressable>
       </View>
     </View>
   );

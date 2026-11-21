@@ -793,7 +793,7 @@
         {
             "version": "0.5.0",
             "title": "Improve the user interface and remove unused UI elements",
-            "status": "in_progress",
+            "status": "ready_for_review",
             "tasks": [
                 {
                     "id": "simplify-auth-navigation",
@@ -828,7 +828,7 @@
                     "version": "0.4.4",
                     "type": "frontend",
                     "changeType": "remove",
-                    "done": false,
+                    "done": true,
                     "verification": "Review removed components and styles for remaining references, including platform-specific imports. Run client type checks and builds for web, Android, and iOS, then confirm the authentication and profile screens still open on each platform."
                 }
             ]
