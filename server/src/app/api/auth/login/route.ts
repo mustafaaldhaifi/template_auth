@@ -7,8 +7,9 @@ import { findLoginAccount } from '@/features/auth/loginRepository';
 import { hashPassword } from '@/features/auth/passwordHash';
 import { verifyPassword } from '@/features/auth/passwordVerify';
 import { verifyAuthRequest } from '@/features/auth/requestVerification';
+import { activeValueBlockSeconds, loadValueAttemptPolicy } from '@/features/auth/valueAttemptRepository';
 import { createSession, sessionCookie } from '@/features/auth/sessionStore';
-import { markRequestVerificationPassed, withApiRequestHistory } from '@/features/apiRequests/apiRequestHistory';
+import { markRequestVerificationPassed, noteRequestValue, withApiRequestHistory } from '@/features/apiRequests/apiRequestHistory';
 import { enforceApiRestriction } from '@/features/apiRequests/enforceApiRestriction';
 import { withAuthCookieRenewal } from '@/features/auth/authCookieRenewal';
 
@@ -44,13 +45,12 @@ function validateLoginInput(body: unknown): LoginValidation {
 
 /**
  * Verifies credentials without revealing whether an email exists.
- * 1. Find the account by normalized email.
+ * 1. Use the account resolved after verification and the block check.
  * 2. Spend comparable hashing work for unknown accounts.
  * 3. Return the account only when its password matches.
  */
-async function authenticateLogin(input: LoginInput): Promise<LoginAccount | null> {
-  // STEP 1: Look up the stored credential.
-  const account = await findLoginAccount(input.email);
+async function authenticateLogin(input: LoginInput, account: LoginAccount | null): Promise<LoginAccount | null> {
+  // STEP 1: Use the already resolved account without another lookup.
   if (!account) {
     // STEP 2: Reduce timing differences for unknown emails.
     await hashPassword(input.password);
@@ -99,7 +99,8 @@ export function OPTIONS(request: Request): Response {
  * 1. Parse the request and return clear input errors.
  * 2. Verify the web proof before looking up or issuing a device.
  * 3. Enforce configured request limits before device or account work.
- * 4. Authenticate without exposing account existence and create a session only on success.
+ * 4. Check any active value block before password work.
+ * 5. Authenticate without exposing account existence and create a session only on success.
  */
 async function handleLogin(request: Request): Promise<Response> {
   const headers = { ...authCorsHeaders(request), 'Cache-Control': 'no-store' };
@@ -125,17 +126,42 @@ async function handleLogin(request: Request): Promise<Response> {
   const restriction = await enforceApiRestriction(request, headers);
   if (restriction) return restriction;
 
-  // STEP 4: A verified but failed first attempt still receives a device cookie.
+  // STEP 4: A value block applies to registered and unknown identifiers alike.
+  let account: LoginAccount | null;
+  let valuePolicy: Awaited<ReturnType<typeof loadValueAttemptPolicy>>;
+  try {
+    account = await findLoginAccount(validation.value.email);
+    valuePolicy = await loadValueAttemptPolicy(validation.value.email, account?.id ?? null);
+    const retryAfterSeconds = valuePolicy ? await activeValueBlockSeconds(valuePolicy) : null;
+    if (retryAfterSeconds !== null) {
+      return loginError(429, 'TOO_MANY_REQUESTS', 'Please wait before trying again.',
+        { ...headers, 'Retry-After': String(retryAfterSeconds) });
+    }
+  } catch (error) {
+    console.error('Failed to check login value limits.', error);
+    return loginError(503, 'RESTRICTION_UNAVAILABLE', 'Please try again shortly.', headers);
+  }
+
+  // STEP 5: A verified but failed first attempt still receives a device cookie.
   let device: DeviceIdentity | null = null;
   try {
     device = await resolveOrCreateDevice(request);
 
-    // STEP 5: Use a generic response for missing accounts and wrong passwords.
-    const account = await authenticateLogin(validation.value);
-    if (!account) {
+    // STEP 6: Only finished password checks acquire a history value.
+    const authenticated = await authenticateLogin(validation.value, account);
+    // NOTE: Another request may have reached the limit while this password was being checked.
+    const concurrentBlock = valuePolicy ? await activeValueBlockSeconds(valuePolicy) : null;
+    if (concurrentBlock !== null) {
+      return withDeviceCookie(loginError(429, 'TOO_MANY_REQUESTS', 'Please wait before trying again.',
+        { ...headers, 'Retry-After': String(concurrentBlock) }), device);
+    }
+    if (!authenticated) {
+      if (valuePolicy) noteRequestValue(valuePolicy);
       return withDeviceCookie(loginError(401, 'INVALID_CREDENTIALS', 'Email or password is incorrect.', headers), device);
     }
-    return await loginSuccess(account, device, request, headers);
+    const response = await loginSuccess(authenticated, device, request, headers);
+    if (valuePolicy) noteRequestValue(valuePolicy);
+    return response;
   } catch (error) {
     if (error instanceof DeviceIssueLimitError) {
       return loginError(429, 'TOO_MANY_REQUESTS', 'Please wait before trying again.', headers);

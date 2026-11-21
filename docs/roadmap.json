@@ -998,7 +998,7 @@
                     "version": "0.6.2",
                     "type": "backend",
                     "changeType": "update",
-                    "done": false,
+                    "done": true,
                     "verification": "After a valid web verification proof, a value with blocked_until in the future gets 429 with Retry-After before password verification; that rejected request has no history value and does not count as another failed password attempt. When value_attemps is enabled, only completed password checks receive a history value: status 0 for invalid credentials and status 1 for successful login. With value_attemps set to {\"count\":10,\"block_duration\":60}, the tenth failed password check creates a 60-second block; an expired block permits a fresh attempt cycle, and a successful login resets the failure count. With value_attemps 0, no value is recorded or blocked. Email and future phone identifiers for one registered user share the same value digest, while unknown identifiers use a type-prefixed digest and receive generic responses. Existing IP, device, and session limits remain independent."
                 },
                 {
