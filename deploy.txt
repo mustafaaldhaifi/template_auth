@@ -1,0 +1,6 @@
+من المجلد الرئيسي للمشروع template_auth، شغّل أمر المشروع الذي تريد تحديثه.
+
+لنشر السيرفر على Vercel
+vercel deploy --prod --yes --project template-auth-server
+لنشر الويب على Vercel
+vercel deploy --prod --yes --project template-auth-web
