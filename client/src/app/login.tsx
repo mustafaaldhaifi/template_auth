@@ -10,6 +10,7 @@ import type { TurnstileVerificationHandle } from '../components/TurnstileVerific
 import { ApiRequestError } from '../api/client';
 import { login, type LoginValues } from '../api/auth';
 import { authStyles } from '../theme/authStyles';
+import { useRateLimitFeedback } from '../hooks/useRateLimitFeedback';
 
 type LoginField = 'email' | 'password';
 type LoginErrors = Partial<Record<LoginField, string>>;
@@ -41,7 +42,7 @@ function validateLogin(values: LoginValues): LoginErrors {
 
 /**
  * Presents the login form on web, Android, and iOS.
- * 1. Track credentials, field errors, and request progress.
+ * 1. Track credentials, field errors, request progress, and web retry timing.
  * 2. Validate credentials and submit a web verification proof through the shared API module.
  * 3. Navigate to the dashboard on success or display the server error.
  */
@@ -56,6 +57,7 @@ export default function LoginPage() {
   const submissionInFlight = useRef(false);
   const router = useRouter();
   const { recovered } = useLocalSearchParams<{ recovered?: string }>();
+  const rateLimit = useRateLimitFeedback();
 
   /**
    * Updates a field and clears feedback that may no longer apply.
@@ -77,13 +79,13 @@ export default function LoginPage() {
 
   /**
    * Submits one login request after local validation.
-   * 1. Reject duplicate, invalid, or unverified web submissions.
+   * 1. Reject duplicate, rate-limited, invalid, or unverified web submissions.
    * 2. Send credentials and navigate after the session is created.
    * 3. Show errors and refresh the consumed web proof when the request ends.
    */
   async function handleSubmit() {
     // STEP 1: Keep an overlapping request from creating multiple sessions.
-    if (submissionInFlight.current) return;
+    if (submissionInFlight.current || rateLimit.isBlocked()) return;
     const nextErrors = validateLogin(values);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
@@ -106,8 +108,13 @@ export default function LoginPage() {
     } catch (error) {
       // STEP 3: Keep the form available with the server's specific feedback.
       if (error instanceof ApiRequestError) {
-        setErrors({ email: error.fieldErrors.email, password: error.fieldErrors.password });
-        setResult(error.message);
+        if (rateLimit.handleRateLimit(error)) {
+          setErrors({});
+          setResult(error.retryAfterSeconds ? '' : error.message);
+        } else {
+          setErrors({ email: error.fieldErrors.email, password: error.fieldErrors.password });
+          setResult(error.message);
+        }
       } else {
         setResult('Could not log in. Please try again.');
       }
@@ -121,7 +128,7 @@ export default function LoginPage() {
   // STEP 3: Render the login page with the shared authentication design.
   return (
     <AuthScreen title="Log in to your account">
-        {recovered === '1' && !result ? (
+        {recovered === '1' && !result && !rateLimit.waitMessage ? (
           <Text accessibilityRole="alert" style={authStyles.result}>
             Password updated. Sign in with your new password.
           </Text>
@@ -149,8 +156,8 @@ export default function LoginPage() {
 
           <TurnstileVerification action="login" ref={verificationRef} onTokenChange={setVerificationToken} />
 
-          <AuthSubmitButton label="Log in" pendingLabel="Logging in..." isSubmitting={isSubmitting} disabled={Platform.OS === 'web' && !verificationToken} onPress={handleSubmit} />
-          {result ? <Text accessibilityRole="alert" style={[authStyles.result, authStyles.resultError]}>{result}</Text> : null}
+          <AuthSubmitButton label="Log in" pendingLabel="Logging in..." isSubmitting={isSubmitting} disabled={(Platform.OS === 'web' && !verificationToken) || rateLimit.remainingSeconds > 0} onPress={handleSubmit} />
+          {rateLimit.waitMessage || result ? <Text accessibilityRole="alert" style={[authStyles.result, authStyles.resultError]}>{rateLimit.waitMessage || result}</Text> : null}
         </View>
         <AuthNavigation current="login" />
     </AuthScreen>

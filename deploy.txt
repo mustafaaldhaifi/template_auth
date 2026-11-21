@@ -4,3 +4,5 @@
 vercel deploy --prod --yes --project template-auth-server
 لنشر الويب على Vercel
 vercel deploy --prod --yes --project template-auth-web
+
+node server/.local-swagger/preview.mjs

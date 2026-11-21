@@ -11,10 +11,11 @@ import TurnstileVerification from '../components/TurnstileVerification';
 import type { TurnstileVerificationHandle } from '../components/TurnstileVerification.types';
 import { useRecoveryFlow } from '../features/passwordRecovery/RecoveryFlowContext';
 import { authStyles } from '../theme/authStyles';
+import { useRateLimitFeedback } from '../hooks/useRateLimitFeedback';
 
 /**
  * Requests an emailed recovery code on web, Android, and iOS.
- * 1. Validate the address and require a web verification proof.
+ * 1. Validate the address, web verification proof, and any active wait period.
  * 2. Send one request through the shared API client.
  * 3. Continue to code entry or show field and request errors.
  */
@@ -29,6 +30,7 @@ export default function ForgotPasswordPage() {
   const submissionInFlight = useRef(false);
   const router = useRouter();
   const recovery = useRecoveryFlow();
+  const rateLimit = useRateLimitFeedback();
 
   /** Clears feedback that no longer describes the edited address. */
   function updateEmail(value: string) {
@@ -40,13 +42,13 @@ export default function ForgotPasswordPage() {
   // STEP 2: Submit only validated addresses through the recovery API.
   /**
    * Sends one code request and advances only after the server responds.
-   * 1. Reject duplicate, invalid, or unverified web requests.
+   * 1. Reject duplicate, rate-limited, invalid, or unverified web requests.
    * 2. Remember the normalized address and open code entry on success.
    * 3. Keep the form available with feedback and refresh the consumed proof.
    */
   async function handleSendRecoveryCode() {
     // STEP 1: Check the draft before contacting the server.
-    if (submissionInFlight.current) return;
+    if (submissionInFlight.current || rateLimit.isBlocked()) return;
     const normalizedEmail = email.trim().toLowerCase();
     if (!/^\S+@\S+\.\S+$/.test(normalizedEmail) || normalizedEmail.length > 254) {
       setError('Enter a valid email address.');
@@ -72,8 +74,13 @@ export default function ForgotPasswordPage() {
     } catch (requestError) {
       // STEP 3: Associate field errors with the email input.
       if (requestError instanceof ApiRequestError) {
-        setError(requestError.fieldErrors.email ?? '');
-        setResult(requestError.message);
+        if (rateLimit.handleRateLimit(requestError)) {
+          setError('');
+          setResult(requestError.retryAfterSeconds ? '' : requestError.message);
+        } else {
+          setError(requestError.fieldErrors.email ?? '');
+          setResult(requestError.message);
+        }
       } else {
         setResult('Could not request a recovery code. Please try again.');
       }
@@ -101,8 +108,8 @@ export default function ForgotPasswordPage() {
 
           <TurnstileVerification action="forgot_password" ref={verificationRef} onTokenChange={setVerificationToken} />
 
-          <AuthSubmitButton label="Send recovery code" pendingLabel="Sending..." isSubmitting={isSubmitting} disabled={Platform.OS === 'web' && !verificationToken} onPress={handleSendRecoveryCode} />
-          {result ? <Text accessibilityRole="alert" style={[authStyles.result, authStyles.resultError]}>{result}</Text> : null}
+          <AuthSubmitButton label="Send recovery code" pendingLabel="Sending..." isSubmitting={isSubmitting} disabled={(Platform.OS === 'web' && !verificationToken) || rateLimit.remainingSeconds > 0} onPress={handleSendRecoveryCode} />
+          {rateLimit.waitMessage || result ? <Text accessibilityRole="alert" style={[authStyles.result, authStyles.resultError]}>{rateLimit.waitMessage || result}</Text> : null}
         </View>
         <AuthNavigation current="forgot-password" />
     </AuthScreen>

@@ -13,6 +13,7 @@ import type { TurnstileVerificationHandle } from '../components/TurnstileVerific
 import { ApiRequestError } from '../api/client';
 import { signup, type SignupValues } from '../api/signup';
 import { authStyles } from '../theme/authStyles';
+import { useRateLimitFeedback } from '../hooks/useRateLimitFeedback';
 
 type SignupField = keyof SignupValues;
 type SignupErrors = Partial<Record<SignupField, string>>;
@@ -61,7 +62,7 @@ function validateSignup(values: SignupValues): SignupErrors {
 }
 /**
  * Presents the shared sign-up form on web, Android, and iOS.
- * 1. Keep entered values, errors, and request progress in local state.
+ * 1. Keep entered values, errors, request progress, and web retry timing in local state.
  * 2. Validate and submit the form with web verification through the shared API module.
  * 3. Show the server result and links to the other pages.
  */
@@ -74,6 +75,7 @@ export default function SignupPage() {
   const [verificationToken, setVerificationToken] = useState('');
   const verificationRef = useRef<TurnstileVerificationHandle>(null);
   const submissionInFlight = useRef(false);
+  const rateLimit = useRateLimitFeedback();
 
   /**
    * Updates one field while clearing feedback that is now stale.
@@ -101,14 +103,14 @@ export default function SignupPage() {
 
   /**
    * Validates and submits the draft while preventing duplicate requests.
-   * 1. Stop an overlapping, invalid, or unverified web submission.
+   * 1. Stop an overlapping, rate-limited, invalid, or unverified web submission.
    * 2. Send the separate name fields and credentials to the API.
    * 3. Display success, field errors, or a connection error.
    * 4. Clear progress and refresh the consumed web proof for another attempt.
    */
   async function handleSubmit() {
     // STEP 1: Guard against duplicate taps and invalid fields.
-    if (submissionInFlight.current) return;
+    if (submissionInFlight.current || rateLimit.isBlocked()) return;
     const nextErrors = validateSignup(values);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
@@ -134,12 +136,17 @@ export default function SignupPage() {
     } catch (error) {
       // STEP 3: Map server field errors to the matching inputs on failure.
       if (error instanceof ApiRequestError) {
-        const serverErrors: SignupErrors = {};
-        for (const field of signupFields) {
-          if (error.fieldErrors[field]) serverErrors[field] = error.fieldErrors[field];
+        if (rateLimit.handleRateLimit(error)) {
+          setErrors({});
+          setFeedback(error.retryAfterSeconds ? null : { kind: 'error', message: error.message });
+        } else {
+          const serverErrors: SignupErrors = {};
+          for (const field of signupFields) {
+            if (error.fieldErrors[field]) serverErrors[field] = error.fieldErrors[field];
+          }
+          setErrors(serverErrors);
+          setFeedback({ kind: 'error', message: error.message });
         }
-        setErrors(serverErrors);
-        setFeedback({ kind: 'error', message: error.message });
       } else {
         setFeedback({ kind: 'error', message: 'Could not create your account. Please try again.' });
       }
@@ -152,6 +159,9 @@ export default function SignupPage() {
   }
 
   // STEP 3: Render the same responsive form on every supported platform.
+  const displayedFeedback: SignupFeedback = rateLimit.waitMessage
+    ? { kind: 'error', message: rateLimit.waitMessage }
+    : feedback;
   return (
     <AuthScreen title="Create your account">
 
@@ -164,8 +174,8 @@ export default function SignupPage() {
 
           <TurnstileVerification action="signup" ref={verificationRef} onTokenChange={setVerificationToken} />
 
-          <AuthSubmitButton label="Create account" pendingLabel="Creating account..." isSubmitting={isSubmitting} disabled={Platform.OS === 'web' && !verificationToken} onPress={handleSubmit} />
-          {feedback ? <Text accessibilityRole="alert" style={[authStyles.result, feedback.kind === 'error' && authStyles.resultError]}>{feedback.message}</Text> : null}
+          <AuthSubmitButton label="Create account" pendingLabel="Creating account..." isSubmitting={isSubmitting} disabled={(Platform.OS === 'web' && !verificationToken) || rateLimit.remainingSeconds > 0} onPress={handleSubmit} />
+          {displayedFeedback ? <Text accessibilityRole="alert" style={[authStyles.result, displayedFeedback.kind === 'error' && authStyles.resultError]}>{displayedFeedback.message}</Text> : null}
         </View>
         <AuthNavigation current="signup" />
     </AuthScreen>

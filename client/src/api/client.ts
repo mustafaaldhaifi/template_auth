@@ -3,6 +3,7 @@ export class ApiRequestError extends Error {
     message: string,
     public readonly code: string,
     public readonly fieldErrors: Record<string, string> = {},
+    public readonly retryAfterSeconds: number | null = null,
   ) {
     super(message);
     this.name = 'ApiRequestError';
@@ -13,7 +14,7 @@ export class ApiRequestError extends Error {
  * Sends a request to the configured backend and unwraps its standard response.
  * 1. Resolve the backend URL supplied for the current platform and environment.
  * 2. Send the request and parse the response, including network failures.
- * 3. Return response data or a user-facing error with field details.
+ * 3. Return response data or a user-facing error with field details and retry timing.
  */
 export async function apiRequest<T>(path: string, options: RequestInit): Promise<T> {
   // STEP 1: Keep the backend address in one environment setting for every platform.
@@ -49,10 +50,14 @@ export async function apiRequest<T>(path: string, options: RequestInit): Promise
           typeof entry[1] === 'string'),
       )
       : {};
+    const retryAfterHeader = response.status === 429 ? Number(response.headers.get('Retry-After')) : 0;
+    const retryAfterSeconds = Number.isSafeInteger(retryAfterHeader) && retryAfterHeader > 0
+      ? retryAfterHeader : null;
     throw new ApiRequestError(
       typeof serverError.message === 'string' ? serverError.message : 'The request failed.',
       typeof serverError.code === 'string' ? serverError.code : 'REQUEST_FAILED',
       fieldErrors,
+      retryAfterSeconds,
     );
   }
   throw new ApiRequestError('The request failed. Please try again.', 'REQUEST_FAILED');

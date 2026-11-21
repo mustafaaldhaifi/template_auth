@@ -836,7 +836,7 @@
         {
             "version": "0.6.0",
             "title": "Record API requests and apply per-route limits by IP, device, and session",
-            "status": "in_progress",
+            "status": "ready_for_review",
             "tasks": [
                 {
                     "id": "create-blocking-tables",
@@ -913,7 +913,7 @@
                     "version": "0.5.4",
                     "type": "frontend",
                     "changeType": "update",
-                    "done": false,
+                    "done": true,
                     "verification": "On the web, a 429 response displays the wait message and prevents duplicate submissions; run client TypeScript and lint checks. Do not build Android or iOS unless explicitly requested."
                 }
             ]
