@@ -24,12 +24,12 @@ export default function AppNavigation({ current, onLogout, logoutPending = false
         <Text style={styles.brandName}>Your space</Text>
       </View>
       <View style={styles.links}>
-        <Link href="/dashboard" asChild>
+        <Link href="/dashboard" replace asChild>
           <Pressable accessibilityLabel="Home" style={homeLinkStyle}>
             <Text style={[styles.linkText, current === 'dashboard' && styles.linkTextActive]}>Home</Text>
           </Pressable>
         </Link>
-        <Link href="/profile" asChild>
+        <Link href="/profile" replace asChild>
           <Pressable accessibilityLabel="Profile" style={profileLinkStyle}>
             <Text style={[styles.linkText, current === 'profile' && styles.linkTextActive]}>Profile</Text>
           </Pressable>

@@ -92,7 +92,7 @@ export default function VerifyResetCodePage() {
         ) : (
           <Text style={authStyles.subtitle}>Enter your email address first to request a recovery code.</Text>
         )}
-        <Link href="/forgot-password" style={styles.backLink}>Back to email address</Link>
+        <Link href="/forgot-password" replace style={styles.backLink}>Back to email address</Link>
     </AuthScreen>
   );
 }

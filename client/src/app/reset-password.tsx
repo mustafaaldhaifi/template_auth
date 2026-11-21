@@ -147,7 +147,7 @@ export default function ResetPasswordPage() {
             <Text accessibilityRole="alert" style={[authStyles.result, authStyles.resultError]}>{feedback}</Text>
           ) : null}
         </View> : null}
-        <Link href="/forgot-password" style={styles.backLink}>Request another code</Link>
+        <Link href="/forgot-password" replace style={styles.backLink}>Request another code</Link>
     </AuthScreen>
   );
 }

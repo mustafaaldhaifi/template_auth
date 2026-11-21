@@ -16,7 +16,7 @@ export default function AuthNavigation({ current }: AuthNavigationProps) {
     <View style={styles.container}>
       <View style={styles.links}>
         {links.filter((link) => link.key !== current).map((link) => (
-          <Link key={link.key} href={link.href} style={styles.link}>
+          <Link key={link.key} href={link.href} replace style={styles.link}>
             {link.label}
           </Link>
         ))}
