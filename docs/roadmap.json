@@ -793,7 +793,7 @@
         {
             "version": "0.5.0",
             "title": "Improve the user interface and remove unused UI elements",
-            "status": "ready_for_review",
+            "status": "completed",
             "tasks": [
                 {
                     "id": "simplify-auth-navigation",
