@@ -6,6 +6,7 @@ import { deletePasswordResetCode, findPasswordResetAccount, issuePasswordResetCo
 import { createPasswordResetCode, createPasswordResetCodeSalt, getPasswordResetCodeSecret, hashPasswordResetCode, passwordResetLifetimeMinutes } from '@/features/auth/passwordResetToken';
 import { validateForgotPasswordInput } from '@/features/auth/passwordResetValidation';
 import { verifyAuthRequest } from '@/features/auth/requestVerification';
+import { markRequestVerificationPassed, withApiRequestHistory } from '@/features/apiRequests/apiRequestHistory';
 
 export function OPTIONS(request: Request): Response {
   return new Response(null, { status: 204, headers: authCorsHeaders(request) });
@@ -30,7 +31,7 @@ function requestError(
  * 3. Create and store a short-lived code digest for an eligible account.
  * 4. Email the code and return the same response for known and unknown emails.
  */
-export async function POST(request: Request): Promise<Response> {
+async function handleForgotPassword(request: Request): Promise<Response> {
   const headers = { ...authCorsHeaders(request), 'Cache-Control': 'no-store' };
 
   // STEP 1: Reject malformed input before touching delivery or storage.
@@ -51,6 +52,7 @@ export async function POST(request: Request): Promise<Response> {
   if (!verification.success) {
     return Response.json({ error: verification.error }, { status: verification.status, headers });
   }
+  markRequestVerificationPassed();
 
   let device: DeviceIdentity | null = null;
   try {
@@ -92,4 +94,9 @@ export async function POST(request: Request): Promise<Response> {
     console.error('Failed to request a password reset.', error);
     return withDeviceCookie(requestError(500, 'INTERNAL_ERROR', 'We could not process your request right now.', headers), device);
   }
+}
+
+/** Records the outcome of one password-recovery request. */
+export function POST(request: Request): Promise<Response> {
+  return withApiRequestHistory(request, () => handleForgotPassword(request));
 }

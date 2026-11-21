@@ -2,6 +2,7 @@ import { authCookie, expiredAuthCookie, readAuthCookie } from './authCookies';
 import { hashOpaqueToken, isOpaqueToken, newOpaqueToken } from './authTokens';
 import { requestDeviceTokenHash } from './deviceStore';
 import { findActiveSessionUserId, insertSession, revokeSession } from './sessionRepository';
+import { noteRequestDevice, noteRequestSession } from '@/features/apiRequests/apiRequestHistory';
 
 const sessionLifetimeSeconds = 60 * 60 * 24 * 7;
 const sessionCookieName = 'auth_session';
@@ -10,6 +11,7 @@ const sessionCookieName = 'auth_session';
  * Creates an opaque persistent session only after successful authentication.
  * 1. Generate a fresh high-entropy token and fixed expiry.
  * 2. Persist its digest with the authenticated user and device.
+ * 3. Associate the new session ID with this request's audit record.
  */
 export async function createSession(userId: string, deviceId: string, loginIpId: string | null): Promise<string> {
   // STEP 1: A fresh session never reuses the pre-authentication device token.
@@ -17,7 +19,9 @@ export async function createSession(userId: string, deviceId: string, loginIpId:
   const expiresAt = new Date(Date.now() + sessionLifetimeSeconds * 1000);
 
   // STEP 2: Only a completed database write may yield a session cookie.
-  await insertSession(hashOpaqueToken(token), userId, deviceId, loginIpId, expiresAt);
+  const sessionId = await insertSession(hashOpaqueToken(token), userId, deviceId, loginIpId, expiresAt);
+  // STEP 3: Never log a session that failed to persist.
+  noteRequestSession(sessionId);
   return token;
 }
 
@@ -31,7 +35,11 @@ export async function getSessionUserId(request: Request): Promise<string | null>
   const sessionToken = readSessionCookie(request);
   const deviceTokenHash = requestDeviceTokenHash(request);
   if (!isOpaqueToken(sessionToken) || !deviceTokenHash) return null;
-  return findActiveSessionUserId(hashOpaqueToken(sessionToken), deviceTokenHash);
+  const session = await findActiveSessionUserId(hashOpaqueToken(sessionToken), deviceTokenHash);
+  if (!session) return null;
+  noteRequestDevice(session.deviceId, null);
+  noteRequestSession(session.sessionId);
+  return session.userId;
 }
 
 /** Reads only the opaque session cookie from an incoming request. */

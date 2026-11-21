@@ -891,12 +891,12 @@
                 },
                 {
                     "id": "record-api-requests",
-                    "title": "Record each existing API request once using its API ID and success status",
+                    "title": "Record requests only after successful verification or a validated session",
                     "version": "0.5.2",
                     "type": "backend",
                     "changeType": "update",
-                    "done": false,
-                    "verification": "For every existing API route, confirm one history row for each 2xx and non-2xx response, including Turnstile failures; identifiers unavailable before verification or login remain null and no device is created before Turnstile succeeds."
+                    "done": true,
+                    "verification": "For login, signup, and forgot-password, invalid or missing verificationToken creates no history row; a successfully verified request creates one row for its final 2xx or non-2xx result. GET /me and POST /logout create a row only with a validated device-bound session. OPTIONS and recovery-code/password-change requests without verified proof or session create no row. Status is 1 for 2xx and 0 otherwise, and unavailable identifiers stay null."
                 },
                 {
                     "id": "enforce-api-restrictions",

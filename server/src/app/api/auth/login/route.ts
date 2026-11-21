@@ -8,6 +8,7 @@ import { hashPassword } from '@/features/auth/passwordHash';
 import { verifyPassword } from '@/features/auth/passwordVerify';
 import { verifyAuthRequest } from '@/features/auth/requestVerification';
 import { createSession, sessionCookie } from '@/features/auth/sessionStore';
+import { markRequestVerificationPassed, withApiRequestHistory } from '@/features/apiRequests/apiRequestHistory';
 
 type LoginInput = { email: string; password: string };
 type LoginValidation =
@@ -97,7 +98,7 @@ export function OPTIONS(request: Request): Response {
  * 2. Verify the web proof before looking up or issuing a device.
  * 3. Authenticate without exposing account existence and create a session only on success.
  */
-export async function POST(request: Request): Promise<Response> {
+async function handleLogin(request: Request): Promise<Response> {
   const headers = { ...authCorsHeaders(request), 'Cache-Control': 'no-store' };
   // STEP 1: Reject malformed or invalid input before database access.
   let body: unknown;
@@ -116,6 +117,7 @@ export async function POST(request: Request): Promise<Response> {
   if (!verification.success) {
     return Response.json({ error: verification.error }, { status: verification.status, headers });
   }
+  markRequestVerificationPassed();
 
   // STEP 3: A verified but failed first attempt still receives a device cookie.
   let device: DeviceIdentity | null = null;
@@ -135,4 +137,9 @@ export async function POST(request: Request): Promise<Response> {
     console.error('Failed to sign in.', error);
     return withDeviceCookie(loginError(500, 'INTERNAL_ERROR', 'We could not sign you in right now.', headers), device);
   }
+}
+
+/** Records the outcome of one login request. */
+export function POST(request: Request): Promise<Response> {
+  return withApiRequestHistory(request, () => handleLogin(request));
 }

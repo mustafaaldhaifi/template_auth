@@ -1,15 +1,15 @@
 import type { Transaction } from 'kysely';
 import { getDatabase, type DatabaseTables } from '@/lib/database';
 
-/** Persists the digest of a new device-bound session. */
+/** Persists a device-bound session digest and returns its audit ID. */
 export async function insertSession(
   tokenHash: string,
   userId: string,
   deviceId: string,
   loginIpId: string | null,
   expiresAt: Date,
-): Promise<void> {
-  await getDatabase().insertInto('auth_sessions')
+): Promise<string> {
+  const row = await getDatabase().insertInto('auth_sessions')
     .values({
       token_hash: tokenHash,
       user_id: userId,
@@ -18,20 +18,25 @@ export async function insertSession(
       expires_at: expiresAt,
       revoked_at: null,
     })
-    .execute();
+    .returning('id')
+    .executeTakeFirstOrThrow();
+  return row.id;
 }
 
-/** Resolves a session only when its token, device, expiry, and revocation all agree. */
-export async function findActiveSessionUserId(tokenHash: string, deviceTokenHash: string): Promise<string | null> {
+/** Resolves an active session and its audit IDs only when both cookies agree. */
+export async function findActiveSessionUserId(
+  tokenHash: string,
+  deviceTokenHash: string,
+): Promise<{ userId: string; sessionId: string; deviceId: string } | null> {
   const row = await getDatabase().selectFrom('auth_sessions as session')
     .innerJoin('devices as device', 'device.id', 'session.device_id')
-    .select('session.user_id')
+    .select(['session.user_id', 'session.id', 'session.device_id'])
     .where('session.token_hash', '=', tokenHash)
     .where('device.device_token_hash', '=', deviceTokenHash)
     .where('session.revoked_at', 'is', null)
     .where('session.expires_at', '>', new Date())
     .executeTakeFirst();
-  return row?.user_id ?? null;
+  return row ? { userId: row.user_id, sessionId: row.id, deviceId: row.device_id } : null;
 }
 
 /** Ends one session without deleting its audit row. */

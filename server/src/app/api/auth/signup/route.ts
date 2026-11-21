@@ -5,6 +5,7 @@ import { hashPassword } from '@/features/auth/passwordHash';
 import { verifyAuthRequest } from '@/features/auth/requestVerification';
 import { createSignupAccount } from '@/features/auth/signupRepository';
 import { validateSignupInput } from '@/features/auth/signupValidation';
+import { markRequestVerificationPassed, withApiRequestHistory } from '@/features/apiRequests/apiRequestHistory';
 
 export function OPTIONS(request: Request): Response {
   return new Response(null, { status: 204, headers: authCorsHeaders(request) });
@@ -17,7 +18,7 @@ export function OPTIONS(request: Request): Response {
  * 3. Hash the password and create all account rows in one transaction.
  * 4. Return account data or a stable duplicate-email/server error response.
  */
-export async function POST(request: Request): Promise<Response> {
+async function handleSignup(request: Request): Promise<Response> {
   const headers = { ...authCorsHeaders(request), 'Cache-Control': 'no-store' };
   // STEP 1: Reject malformed JSON and invalid fields before accessing the database.
   let body: unknown;
@@ -48,6 +49,7 @@ export async function POST(request: Request): Promise<Response> {
   if (!verification.success) {
     return Response.json({ error: verification.error }, { status: verification.status, headers });
   }
+  markRequestVerificationPassed();
 
   // STEP 3: A verified first request gets a device whether signup succeeds or fails.
   const { firstName, lastName, email, password } = validation.value;
@@ -90,4 +92,9 @@ export async function POST(request: Request): Promise<Response> {
       { status: 500, headers },
     ), device);
   }
+}
+
+/** Records the outcome of one signup request. */
+export function POST(request: Request): Promise<Response> {
+  return withApiRequestHistory(request, () => handleSignup(request));
 }

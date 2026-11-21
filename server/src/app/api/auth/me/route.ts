@@ -1,6 +1,7 @@
 import { authCorsHeaders } from '@/features/auth/authCors';
 import { findCurrentUser } from '@/features/auth/currentUserRepository';
 import { getSessionUserId } from '@/features/auth/sessionStore';
+import { withApiRequestHistory } from '@/features/apiRequests/apiRequestHistory';
 
 export function OPTIONS(request: Request): Response {
   return new Response(null, { status: 204, headers: authCorsHeaders(request) });
@@ -12,7 +13,7 @@ export function OPTIONS(request: Request): Response {
  * 2. Load the account and reject sessions whose user no longer exists.
  * 3. Return the public details without allowing the response to be cached.
  */
-export async function GET(request: Request): Promise<Response> {
+async function handleCurrentUser(request: Request): Promise<Response> {
   const headers = { ...authCorsHeaders(request), 'Cache-Control': 'no-store' };
 
   try {
@@ -43,4 +44,9 @@ export async function GET(request: Request): Promise<Response> {
       { status: 500, headers },
     );
   }
+}
+
+/** Records the outcome of one current-user request. */
+export function GET(request: Request): Promise<Response> {
+  return withApiRequestHistory(request, () => handleCurrentUser(request));
 }
