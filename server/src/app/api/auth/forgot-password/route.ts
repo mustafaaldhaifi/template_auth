@@ -1,7 +1,8 @@
 import { authCorsHeaders } from '@/features/auth/authCors';
 import { DeviceIssueLimitError } from '@/features/auth/deviceRepository';
 import { resolveOrCreateDevice, withDeviceCookie, type DeviceIdentity } from '@/features/auth/deviceStore';
-import { getPasswordResetMailConfig, sendPasswordResetCodeEmail } from '@/features/auth/passwordResetEmail';
+import { getAuthMailConfig } from '@/features/auth/authEmail';
+import { sendPasswordResetCodeEmail } from '@/features/auth/passwordResetEmail';
 import { deletePasswordResetCode, findPasswordResetAccount, issuePasswordResetCode } from '@/features/auth/passwordResetRepository';
 import { createPasswordResetCode, createPasswordResetCodeSalt, getPasswordResetCodeSecret, hashPasswordResetCode, passwordResetLifetimeMinutes } from '@/features/auth/passwordResetToken';
 import { validateForgotPasswordInput } from '@/features/auth/passwordResetValidation';
@@ -66,7 +67,7 @@ async function handleForgotPassword(request: Request): Promise<Response> {
     device = await resolveOrCreateDevice(request);
 
     // STEP 5: Validate configuration for every request before looking up an email.
-    const mailConfig = getPasswordResetMailConfig();
+    const mailConfig = getAuthMailConfig();
     const secret = getPasswordResetCodeSecret();
     const account = await findPasswordResetAccount(validation.value.email);
     if (!account) return withDeviceCookie(new Response(null, { status: 204, headers }), device);

@@ -1,5 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { after } from 'next/server';
 import { trustedClientIp } from '@/features/auth/clientIp';
+import { notifyRegisteredValueBlock } from '@/features/auth/valueBlockEmail';
 import { recordValueAttempt, type ValueAttemptOutcome, type ValueAttemptPolicy } from '@/features/auth/valueAttemptRepository';
 import { completeReservedRequest, insertRequestHistory } from './apiRequestHistoryRepository';
 
@@ -108,6 +110,7 @@ async function recordOutcome(request: Request, status: number, identity: Request
  * 1. Create an isolated context for identifiers learned during the request.
  * 2. Run the original handler and capture its response or unhandled failure.
  * 3. Store one success or failure row for verified requests before returning the original outcome.
+ * 4. Schedule a registered user's new-block warning after the response.
  */
 export function withApiRequestHistory(request: Request, handler: () => Response | Promise<Response>): Promise<Response> {
   // STEP 1: Keep identifiers isolated across concurrent requests.
@@ -140,6 +143,11 @@ export function withApiRequestHistory(request: Request, handler: () => Response 
       headers.delete('Set-Cookie');
       return Response.json({ error: { code: 'RESTRICTION_UNAVAILABLE', message: 'Please try again shortly.' } },
         { status: 503, headers });
+    }
+    if (valueOutcome?.newBlock) {
+      // STEP 4: Delivery after the response avoids timing-based account disclosure.
+      const block = valueOutcome.newBlock;
+      after(() => notifyRegisteredValueBlock(block));
     }
     if (valueOutcome?.retryAfterSeconds != null) {
       const headers = new Headers(response.headers);

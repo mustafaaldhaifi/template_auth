@@ -921,7 +921,7 @@
         {
             "version": "0.7.0",
             "title": "Temporarily block repeated failed sign-ins by account value",
-            "status": "in_progress",
+            "status": "ready_for_review",
             "tasks": [
                 {
                     "id": "prepare-value-blocking-schema",
@@ -1007,7 +1007,7 @@
                     "version": "0.6.3",
                     "type": "backend",
                     "changeType": "add",
-                    "done": false,
+                    "done": true,
                     "verification": "A new block for an existing account sends one generic warning to its registered email after the block commits and records notified_at; repeated requests during that block send nothing. Unknown values send no message. A mail failure does not undo the block or expose whether the account exists. Phone delivery is deferred until a registered phone and sender exist."
                 }
             ]

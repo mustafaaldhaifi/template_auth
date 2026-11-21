@@ -10,7 +10,12 @@ export type ValueAttemptPolicy = {
   count: number;
   blockDuration: number;
 };
-export type ValueAttemptOutcome = { retryAfterSeconds: number | null; blockAlreadyActive: boolean };
+export type NewValueBlock = { apiId: string; value: string; userId: string; blockedAt: Date };
+export type ValueAttemptOutcome = {
+  retryAfterSeconds: number | null;
+  blockAlreadyActive: boolean;
+  newBlock: NewValueBlock | null;
+};
 
 /** Uses one account key across present and future sign-in identifiers. */
 function valueDigest(identifier: string, userId: string | null): string {
@@ -85,7 +90,7 @@ export async function recordValueAttempt(
           .execute();
       }
       return { retryAfterSeconds: Math.max(1, Math.ceil((block.blocked_until.getTime() - now.getTime()) / 1000)),
-        blockAlreadyActive: true };
+        blockAlreadyActive: true, newBlock: null };
     }
 
     // STEP 2: Record a value only when a password check has finished.
@@ -101,7 +106,7 @@ export async function recordValueAttempt(
           session_id: entry.sessionId, status: entry.status, value: policy.value })
         .execute();
     }
-    if (entry.status === 1) return { retryAfterSeconds: null, blockAlreadyActive: false };
+    if (entry.status === 1) return { retryAfterSeconds: null, blockAlreadyActive: false, newBlock: null };
 
     // STEP 3: An expired block and a successful password check each reset the cycle.
     const latestSuccess = await transaction.selectFrom('api_request_history')
@@ -121,7 +126,9 @@ export async function recordValueAttempt(
       .where('status', '=', 0)
       .where('created_at', '>', new Date(cutoff))
       .executeTakeFirstOrThrow();
-    if (Number(failures.count) < policy.count) return { retryAfterSeconds: null, blockAlreadyActive: false };
+    if (Number(failures.count) < policy.count) {
+      return { retryAfterSeconds: null, blockAlreadyActive: false, newBlock: null };
+    }
     await transaction.insertInto('blocked_values')
       .values({ api_id: policy.apiId, value: policy.value, user_id: policy.userId,
         blocked_at: now, blocked_until: new Date(now.getTime() + policy.blockDuration * 1000) })
@@ -130,6 +137,40 @@ export async function recordValueAttempt(
         blocked_until: new Date(now.getTime() + policy.blockDuration * 1000), notified_at: null,
       }))
       .execute();
-    return { retryAfterSeconds: policy.blockDuration, blockAlreadyActive: false };
+    return {
+      retryAfterSeconds: policy.blockDuration,
+      blockAlreadyActive: false,
+      newBlock: policy.userId
+        ? { apiId: policy.apiId, value: policy.value, userId: policy.userId, blockedAt: now }
+        : null,
+    };
   });
+}
+
+/** Finds one registered email only while the newly created block is still current. */
+export async function findBlockNotificationEmail(block: NewValueBlock): Promise<string | null> {
+  const row = await getDatabase().selectFrom('blocked_values as b')
+    .innerJoin('user_emails as e', 'e.user_id', 'b.user_id')
+    .select('e.email')
+    .where('b.api_id', '=', block.apiId)
+    .where('b.value', '=', block.value)
+    .where('b.user_id', '=', block.userId)
+    .where('b.blocked_at', '=', block.blockedAt)
+    .where('b.notified_at', 'is', null)
+    .orderBy('e.created_at', 'asc')
+    .orderBy('e.id', 'asc')
+    .executeTakeFirst();
+  return row?.email ?? null;
+}
+
+/** Marks delivery only for the same block cycle after SMTP accepts the message. */
+export async function markValueBlockNotified(block: NewValueBlock): Promise<void> {
+  await getDatabase().updateTable('blocked_values')
+    .set({ notified_at: new Date() })
+    .where('api_id', '=', block.apiId)
+    .where('value', '=', block.value)
+    .where('user_id', '=', block.userId)
+    .where('blocked_at', '=', block.blockedAt)
+    .where('notified_at', 'is', null)
+    .execute();
 }
