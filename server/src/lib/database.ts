@@ -73,6 +73,7 @@ export interface DatabaseTables {
     api_id: string;
     policy: Record<string, number>;
     items: ('ip' | 'device' | 'session')[];
+    value_attemps: Generated<0 | { count: number; block_duration: number }>;
   };
   api_request_history: {
     id: Generated<string>;
@@ -82,6 +83,16 @@ export interface DatabaseTables {
     session_id: string | null;
     status: 0 | 1;
     created_at: Generated<Date>;
+    value: Generated<string | null>;
+  };
+  blocked_values: {
+    id: Generated<string>;
+    api_id: string;
+    value: string;
+    user_id: Generated<string | null>;
+    blocked_at: Generated<Date>;
+    blocked_until: Date;
+    notified_at: Generated<Date | null>;
   };
 }
 

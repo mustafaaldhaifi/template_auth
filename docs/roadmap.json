@@ -921,7 +921,7 @@
         {
             "version": "0.7.0",
             "title": "Temporarily block repeated failed sign-ins by account value",
-            "status": "not_started",
+            "status": "in_progress",
             "tasks": [
                 {
                     "id": "prepare-value-blocking-schema",
@@ -929,7 +929,7 @@
                     "version": "0.6.1",
                     "type": "backend",
                     "changeType": "add",
-                    "done": false,
+                    "done": true,
                     "verification": "Apply the single migration and confirm existing rows remain intact; value_attemps defaults to 0, accepts only 0 or positive integer count and block_duration seconds, request values are nullable, and blocked values have one row per API and value with a valid expiry.",
                     "structure": {
                         "tables": [
