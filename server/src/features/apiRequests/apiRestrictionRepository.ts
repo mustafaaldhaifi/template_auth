@@ -80,7 +80,7 @@ async function countRecentAttempts(
   return Number(row.attempts);
 }
 
-/** Finds when enough counted attempts will leave the rolling window. */
+/** Finds when the current blocked request and enough older attempts will leave the window. */
 async function secondsUntilAvailable(
   transaction: Transaction<DatabaseTables>,
   apiId: string,
@@ -91,6 +91,9 @@ async function secondsUntilAvailable(
   maximum: number,
   now: Date,
 ): Promise<number> {
+  const releaseOffset = attempts + 1 - maximum;
+  // NOTE: The newly blocked row is the last row and expires after the full window.
+  if (releaseOffset === attempts) return minutes * 60;
   const row = await transaction.selectFrom('api_request_history')
     .select('created_at')
     .where('api_id', '=', apiId)
@@ -98,7 +101,7 @@ async function secondsUntilAvailable(
     .where('created_at', '>', since)
     .orderBy('created_at', 'asc')
     .orderBy('id', 'asc')
-    .offset(attempts - maximum)
+    .offset(releaseOffset)
     .limit(1)
     .executeTakeFirstOrThrow();
   return Math.max(1, Math.ceil((row.created_at.getTime() + minutes * 60_000 - now.getTime()) / 1000));
@@ -108,7 +111,7 @@ async function secondsUntilAvailable(
  * Checks minute-based policy windows and reserves one attempt atomically.
  * 1. Load the policy for the existing method and path.
  * 2. Resolve available IDs and lock each configured subject in stable order.
- * 3. Reject when any subject exceeds any window, then reserve one history row.
+ * 3. Check every window, calculate the wait including this blocked attempt, and reserve one history row.
  */
 export async function reserveRestrictedRequest(input: RestrictionInput): Promise<RestrictionResult> {
   return getDatabase().transaction().execute(async (transaction) => {
@@ -135,16 +138,24 @@ export async function reserveRestrictedRequest(input: RestrictionInput): Promise
 
     // STEP 3: Every window applies independently to every available subject.
     const now = new Date();
-    let retryAfterSeconds = 0;
+    const checks: { minutes: number; maximum: number; target: LimitTarget; since: Date; attempts: number }[] = [];
+    let blocked = false;
     for (const [minuteText, maximum] of Object.entries(restriction.policy)) {
       const minutes = Number(minuteText);
       const since = new Date(now.getTime() - minutes * 60_000);
       for (const target of targets) {
         const attempts = await countRecentAttempts(transaction, api.id, target, since);
-        if (attempts >= maximum) {
-          const seconds = await secondsUntilAvailable(transaction, api.id, target, since, minutes, attempts, maximum, now);
-          retryAfterSeconds = Math.max(retryAfterSeconds, seconds);
-        }
+        checks.push({ minutes, maximum, target, since, attempts });
+        if (attempts >= maximum) blocked = true;
+      }
+    }
+    let retryAfterSeconds = 0;
+    if (blocked) {
+      // NOTE: This rejected attempt is recorded and can fill another policy window too.
+      for (const { minutes, maximum, target, since, attempts } of checks) {
+        if (attempts + 1 < maximum) continue;
+        const seconds = await secondsUntilAvailable(transaction, api.id, target, since, minutes, attempts, maximum, now);
+        retryAfterSeconds = Math.max(retryAfterSeconds, seconds);
       }
     }
     const row = await transaction.insertInto('api_request_history')
@@ -159,7 +170,7 @@ export async function reserveRestrictedRequest(input: RestrictionInput): Promise
       .returning('id')
       .executeTakeFirstOrThrow();
     return {
-      kind: retryAfterSeconds > 0 ? 'blocked' : 'allowed',
+      kind: blocked ? 'blocked' : 'allowed',
       reservationId: row.id,
       ipId,
       deviceId,
