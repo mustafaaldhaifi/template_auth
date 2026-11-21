@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Text } from 'react-native';
+import { Text, useWindowDimensions } from 'react-native';
 import { authColors } from '../theme/authColors';
 import type { TurnstileVerificationHandle, TurnstileVerificationProps } from './TurnstileVerification.types';
 
@@ -7,7 +7,7 @@ type TurnstileApi = {
   render: (container: HTMLElement, options: {
     sitekey: string;
     action: TurnstileVerificationProps['action'];
-    size: 'compact';
+    size: 'compact' | 'flexible';
     callback: (token: string) => void;
     'expired-callback': () => void;
     'error-callback': (code: string) => boolean;
@@ -78,7 +78,7 @@ function loadTurnstile(): Promise<TurnstileApi> {
 
 /**
  * Renders a reusable browser challenge and exposes token reset to its form.
- * 1. Load the Turnstile script and render a widget with a public site key.
+ * 1. Load the Turnstile script and render a widget sized for the form width.
  * 2. Clear expired or failed proofs and remove the widget on unmount.
  * 3. Reset a used proof before another form submission.
  */
@@ -88,6 +88,8 @@ const TurnstileVerification = forwardRef<TurnstileVerificationHandle, TurnstileV
     const widgetRef = useRef<string | null>(null);
     const callbackRef = useRef(onTokenChange);
     const [message, setMessage] = useState('');
+    const { width } = useWindowDimensions();
+    const widgetSize = width >= 375 ? 'flexible' : 'compact';
     const siteKey = process.env.EXPO_PUBLIC_TURNSTILE_SITE_KEY?.trim();
     callbackRef.current = onTokenChange;
 
@@ -95,14 +97,16 @@ const TurnstileVerification = forwardRef<TurnstileVerificationHandle, TurnstileV
     useEffect(() => {
       if (!siteKey) return;
       let active = true;
+      // NOTE: Resizing recreates the widget, so its earlier proof must not remain usable.
+      callbackRef.current('');
       loadTurnstile().then((api) => {
         if (!active || !containerRef.current) return;
         try {
           widgetRef.current = api.render(containerRef.current, {
             sitekey: siteKey,
             action,
-            // NOTE: Compact fits narrow phone browsers; flexible has a 300px minimum width.
-            size: 'compact',
+            // NOTE: Flexible is shorter but needs 300px; compact fits narrower forms.
+            size: widgetSize,
             callback: (token) => {
               if (!active) return;
               setMessage('');
@@ -137,7 +141,7 @@ const TurnstileVerification = forwardRef<TurnstileVerificationHandle, TurnstileV
           widgetRef.current = null;
         }
       };
-    }, [action, siteKey]);
+    }, [action, siteKey, widgetSize]);
 
     // STEP 3: A submitted proof is single-use, including when the request fails.
     useImperativeHandle(ref, () => ({
