@@ -5,6 +5,7 @@
 - Read `docs/roadmap.json` before planning or implementing changes. The roadmap can list future releases. Work on the earliest release whose status is not `completed`.
 - When I ask to add a release, ask me for the target version, the goal, and the changes I want. Ask only for details I have not already provided.
 - Propose an ordered task list before editing the roadmap. Include each task's `id`, `title`, `version`, `type` (`frontend` or `backend`), `changeType` (`add`, `update`, or `remove`), and how I can verify it. Include `structure` for tasks that create or change a database table.
+- Group the creation of related tables for one feature into a single roadmap task. Include the full `structure` of every table in that task.
 - Keep the target release version fixed. Number new tasks by incrementing the patch number of the previous release. For example, tasks for `0.3.0` start at `0.2.1` when the previous release is `0.2.0`. Use the task versions already recorded in the roadmap when implementing planned work.
 - Add the new release to `docs/roadmap.json` only after I approve the proposed plan and the earlier releases are `completed`. If an earlier release is unfinished, tell me which release must be completed first. Initialize a newly added release as `not_started` and its tasks with `done: false`.
 

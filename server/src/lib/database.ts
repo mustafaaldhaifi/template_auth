@@ -63,6 +63,26 @@ export interface DatabaseTables {
     expires_at: Date;
     revoked_at: Date | null;
   };
+  apis: {
+    id: Generated<string>;
+    method: string;
+    path: string;
+  };
+  api_restrictions: {
+    id: Generated<string>;
+    api_id: string;
+    policy: Record<string, number>;
+    items: ('ip' | 'device' | 'session')[];
+  };
+  api_request_history: {
+    id: Generated<string>;
+    api_id: string;
+    ip_id: string | null;
+    device_id: string | null;
+    session_id: string | null;
+    status: 0 | 1;
+    created_at: Generated<Date>;
+  };
 }
 
 let database: Kysely<DatabaseTables> | undefined;
