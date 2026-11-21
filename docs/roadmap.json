@@ -921,7 +921,7 @@
         {
             "version": "0.7.0",
             "title": "Temporarily block repeated failed sign-ins by account value",
-            "status": "ready_for_review",
+            "status": "completed",
             "tasks": [
                 {
                     "id": "prepare-value-blocking-schema",
