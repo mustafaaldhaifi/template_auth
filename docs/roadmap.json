@@ -836,7 +836,7 @@
         {
             "version": "0.6.0",
             "title": "Record API requests and apply per-route limits by IP, device, and session",
-            "status": "ready_for_review",
+            "status": "completed",
             "tasks": [
                 {
                     "id": "create-blocking-tables",
@@ -915,6 +915,100 @@
                     "changeType": "update",
                     "done": true,
                     "verification": "On the web, a 429 response displays the wait message and prevents duplicate submissions; run client TypeScript and lint checks. Do not build Android or iOS unless explicitly requested."
+                }
+            ]
+        },
+        {
+            "version": "0.7.0",
+            "title": "Temporarily block repeated failed sign-ins by account value",
+            "status": "not_started",
+            "tasks": [
+                {
+                    "id": "prepare-value-blocking-schema",
+                    "title": "Add value attempt settings and request values, and create blocked_values in one migration",
+                    "version": "0.6.1",
+                    "type": "backend",
+                    "changeType": "add",
+                    "done": false,
+                    "verification": "Apply the single migration and confirm existing rows remain intact; value_attemps defaults to 0, accepts only 0 or positive integer count and block_duration seconds, request values are nullable, and blocked values have one row per API and value with a valid expiry.",
+                    "structure": {
+                        "tables": [
+                            {
+                                "table": "api_restrictions",
+                                "operation": "update",
+                                "columns": [
+                                    { "name": "id", "type": "bigint", "nullable": false, "primaryKey": true, "identity": "generated always", "existing": true },
+                                    { "name": "api_id", "type": "bigint", "nullable": false, "unique": true, "references": "apis(id)", "existing": true },
+                                    { "name": "policy", "type": "jsonb", "nullable": false, "existing": true },
+                                    { "name": "items", "type": "text[]", "nullable": false, "existing": true },
+                                    { "name": "value_attemps", "type": "jsonb", "nullable": false, "default": "0", "existing": false }
+                                ],
+                                "constraints": [
+                                    "Existing policy and items checks remain unchanged",
+                                    "value_attemps is either 0 or an object with exactly positive integer count and block_duration fields; block_duration is in seconds"
+                                ],
+                                "example": { "value_attemps": { "count": 10, "block_duration": 60 } }
+                            },
+                            {
+                                "table": "api_request_history",
+                                "operation": "update",
+                                "columns": [
+                                    { "name": "id", "type": "bigint", "nullable": false, "primaryKey": true, "identity": "generated always", "existing": true },
+                                    { "name": "api_id", "type": "bigint", "nullable": false, "references": "apis(id)", "existing": true },
+                                    { "name": "ip_id", "type": "bigint", "nullable": true, "references": "ips(id)", "existing": true },
+                                    { "name": "device_id", "type": "bigint", "nullable": true, "references": "devices(id)", "existing": true },
+                                    { "name": "session_id", "type": "bigint", "nullable": true, "references": "auth_sessions(id)", "existing": true },
+                                    { "name": "status", "type": "smallint", "nullable": false, "existing": true },
+                                    { "name": "created_at", "type": "timestamptz", "nullable": false, "default": "now()", "existing": true },
+                                    { "name": "value", "type": "text", "nullable": true, "default": "NULL", "existing": false }
+                                ],
+                                "constraints": [
+                                    "Existing status IN (0, 1) check remains unchanged",
+                                    "value is NULL or a 64-character lowercase hexadecimal HMAC digest"
+                                ],
+                                "indexes": [
+                                    "Existing (api_id, created_at, ip_id), (api_id, created_at, device_id), and (api_id, created_at, session_id) indexes remain unchanged",
+                                    "(api_id, value, created_at) WHERE value IS NOT NULL"
+                                ]
+                            },
+                            {
+                                "table": "blocked_values",
+                                "operation": "create",
+                                "columns": [
+                                    { "name": "id", "type": "bigint", "nullable": false, "primaryKey": true, "identity": "generated always" },
+                                    { "name": "api_id", "type": "bigint", "nullable": false, "references": "apis(id)" },
+                                    { "name": "value", "type": "text", "nullable": false },
+                                    { "name": "user_id", "type": "uuid", "nullable": true, "references": "users(id) ON DELETE SET NULL", "default": "NULL" },
+                                    { "name": "blocked_at", "type": "timestamptz", "nullable": false, "default": "now()" },
+                                    { "name": "blocked_until", "type": "timestamptz", "nullable": false },
+                                    { "name": "notified_at", "type": "timestamptz", "nullable": true, "default": "NULL" }
+                                ],
+                                "constraints": [
+                                    "UNIQUE (api_id, value)",
+                                    "value is a 64-character lowercase hexadecimal HMAC digest",
+                                    "blocked_until > blocked_at"
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": "enforce-value-attempt-blocks",
+                    "title": "Check active blocked_values before password work and block a value after its configured failed-attempt count",
+                    "version": "0.6.2",
+                    "type": "backend",
+                    "changeType": "update",
+                    "done": false,
+                    "verification": "After a valid web verification proof, a value with blocked_until in the future gets 429 with Retry-After before password verification; that rejected request has no history value and does not count as another failed password attempt. When value_attemps is enabled, only completed password checks receive a history value: status 0 for invalid credentials and status 1 for successful login. With value_attemps set to {\"count\":10,\"block_duration\":60}, the tenth failed password check creates a 60-second block; an expired block permits a fresh attempt cycle, and a successful login resets the failure count. With value_attemps 0, no value is recorded or blocked. Email and future phone identifiers for one registered user share the same value digest, while unknown identifiers use a type-prefixed digest and receive generic responses. Existing IP, device, and session limits remain independent."
+                },
+                {
+                    "id": "notify-registered-blocked-users",
+                    "title": "Email registered users once when a new value block is created, leaving future phone delivery to the phone feature",
+                    "version": "0.6.3",
+                    "type": "backend",
+                    "changeType": "add",
+                    "done": false,
+                    "verification": "A new block for an existing account sends one generic warning to its registered email after the block commits and records notified_at; repeated requests during that block send nothing. Unknown values send no message. A mail failure does not undo the block or expose whether the account exists. Phone delivery is deferred until a registered phone and sender exist."
                 }
             ]
         }
