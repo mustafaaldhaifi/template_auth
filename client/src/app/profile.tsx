@@ -9,7 +9,7 @@ import { authColors } from '../theme/authColors';
  * Shows the signed-in user's profile and shared navigation.
  * 1. Check the session before showing personal details.
  * 2. Provide retry feedback for temporary request failures.
- * 3. Display the account's first name, last name, and email.
+ * 3. Display the account's names and available sign-in identifiers.
  */
 export default function ProfilePage() {
   const { width } = useWindowDimensions();
@@ -24,11 +24,12 @@ export default function ProfilePage() {
   }
 
   // STEP 3: Derive the visible identity from the server response.
-  const { firstName, lastName, email } = state.user;
+  const { firstName, lastName, email, phone } = state.user;
   const profileFields = [
     { label: 'First name', value: firstName },
     { label: 'Last name', value: lastName },
-    { label: 'Email address', value: email },
+    ...(email ? [{ label: 'Email address', value: email }] : []),
+    ...(phone ? [{ label: 'Phone number', value: phone }] : []),
   ];
   const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 

@@ -39,6 +39,27 @@ action, so use the real widget on an allowed deployed hostname for an end-to-end
 
 ## Sign-up API
 
+### Phone sign-up test delivery
+
+After creating `country_codes` and `user_phones`, seed the selectable countries once:
+
+```powershell
+psql $env:DATABASE_URL_UNPOOLED -v ON_ERROR_STOP=1 -f .\migrations\0.7.2_seed_phone_country_codes.sql
+```
+
+Use the existing SMTP settings and `PASSWORD_RESET_CODE_SECRET`. During testing, the
+SMS and WhatsApp delivery functions send an eight-digit code to
+`mustafaaldhaifi@gmail.com` with the selected channel in
+the subject. This is a test delivery adapter, not proof of control of the phone number.
+Phone sign-up uses the existing `POST /api/auth/signup` path with `method: "phone"`.
+`phoneAction: "send_code"` sends the code and issues a signed, ten-minute, device-bound
+HttpOnly challenge cookie; `phoneAction: "confirm_code"` also requires `phoneCode` and
+creates the account after the code matches. Both requests require a fresh web proof.
+Both requests include `firstName`, `lastName`, `countryIso2`, `phone`, `channel`,
+`password`, and `confirmPassword`. Sending returns `204`; confirmation returns `201`
+with `{ "data": { "id", "firstName", "lastName", "phone" } }`. Validation and code
+errors use the standard `error` response. No phone-code table or new URL is used.
+
 Set `DATABASE_URL` to a PostgreSQL connection string before starting the server. For the linked Neon development branch in PowerShell:
 
 ```powershell

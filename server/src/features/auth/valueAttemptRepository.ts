@@ -18,14 +18,15 @@ export type ValueAttemptOutcome = {
 };
 
 /** Uses one account key across present and future sign-in identifiers. */
-function valueDigest(identifier: string, userId: string | null): string {
-  const subject = userId ? `user:${userId}` : `email:${identifier}`;
+function valueDigest(identifier: string, userId: string | null, kind: 'email' | 'phone'): string {
+  const subject = userId ? `user:${userId}` : `${kind}:${identifier}`;
   return createHmac('sha256', getPasswordResetCodeSecret())
     .update('login-value:v1:').update(subject).digest('hex');
 }
 
 /** Loads the login value policy without persisting or exposing the identifier. */
-export async function loadValueAttemptPolicy(email: string, userId: string | null): Promise<ValueAttemptPolicy | null> {
+export async function loadValueAttemptPolicy(identifier: string, userId: string | null,
+  kind: 'email' | 'phone' = 'email'): Promise<ValueAttemptPolicy | null> {
   const row = await getDatabase().selectFrom('apis as a')
     .innerJoin('api_restrictions as r', 'r.api_id', 'a.id')
     .select(['a.id as api_id', 'r.value_attemps'])
@@ -36,7 +37,7 @@ export async function loadValueAttemptPolicy(email: string, userId: string | nul
   if (!row || !settings || typeof settings === 'number') return null;
   return {
     apiId: row.api_id,
-    value: valueDigest(email, userId),
+    value: valueDigest(identifier, userId, kind),
     userId,
     count: settings.count,
     blockDuration: settings.block_duration,

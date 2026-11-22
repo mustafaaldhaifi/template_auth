@@ -3,7 +3,8 @@ import { appendAuthCookie } from '@/features/auth/authCookies';
 import { DeviceIssueLimitError } from '@/features/auth/deviceRepository';
 import { resolveOrCreateDevice, withDeviceCookie, type DeviceIdentity } from '@/features/auth/deviceStore';
 import type { LoginAccount } from '@/features/auth/loginRepository';
-import { findLoginAccount } from '@/features/auth/loginRepository';
+import { findLoginAccount, findLoginAccountByPhone } from '@/features/auth/loginRepository';
+import { findSignupCountry } from '@/features/auth/signupRepository';
 import { hashPassword } from '@/features/auth/passwordHash';
 import { verifyPassword } from '@/features/auth/passwordVerify';
 import { verifyAuthRequest } from '@/features/auth/requestVerification';
@@ -13,7 +14,7 @@ import { markRequestVerificationPassed, noteRequestValue, withApiRequestHistory 
 import { enforceApiRestriction } from '@/features/apiRequests/enforceApiRestriction';
 import { withAuthCookieRenewal } from '@/features/auth/authCookieRenewal';
 
-type LoginInput = { email: string; password: string };
+type LoginInput = { method: 'email' | 'phone'; email: string; countryIso2: string; phone: string; password: string };
 type LoginValidation =
   | { success: true; value: LoginInput }
   | { success: false; fieldErrors: Record<string, string> };
@@ -28,19 +29,24 @@ function validateLoginInput(body: unknown): LoginValidation {
   const fields = body && typeof body === 'object' && !Array.isArray(body)
     ? body as Record<string, unknown> : {};
   const email = typeof fields.email === 'string' ? fields.email.trim().toLowerCase() : '';
+  const method = fields.method === 'phone' ? 'phone' : 'email';
+  const countryIso2 = typeof fields.countryIso2 === 'string' ? fields.countryIso2.toUpperCase() : '';
+  const phone = typeof fields.phone === 'string' ? fields.phone : '';
   const password = typeof fields.password === 'string' ? fields.password : '';
 
   // STEP 2: Keep errors associated with their request fields.
   const fieldErrors: Record<string, string> = {};
-  if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 254) {
+  if (method === 'email' && (!/^\S+@\S+\.\S+$/.test(email) || email.length > 254)) {
     fieldErrors.email = 'Enter a valid email address.';
   }
+  if (method === 'phone' && !/^[A-Z]{2}$/.test(countryIso2)) fieldErrors.countryIso2 = 'Choose a supported country.';
+  if (method === 'phone' && !/^[0-9]{4,15}$/.test(phone)) fieldErrors.phone = 'Enter a valid phone number.';
   if (!password || password.length > 128) {
     fieldErrors.password = 'Enter a password of up to 128 characters.';
   }
   return Object.keys(fieldErrors).length > 0
     ? { success: false, fieldErrors }
-    : { success: true, value: { email, password } };
+    : { success: true, value: { method, email, countryIso2, phone, password } };
 }
 
 /**
@@ -85,6 +91,7 @@ async function loginSuccess(
     firstName: account.firstName,
     lastName: account.lastName,
     email: account.email,
+    phone: account.phone,
   } }, { status: 200, headers });
   appendAuthCookie(response, sessionCookie(token, request));
   return withDeviceCookie(response, device);
@@ -130,8 +137,20 @@ async function handleLogin(request: Request): Promise<Response> {
   let account: LoginAccount | null;
   let valuePolicy: Awaited<ReturnType<typeof loadValueAttemptPolicy>>;
   try {
-    account = await findLoginAccount(validation.value.email);
-    valuePolicy = await loadValueAttemptPolicy(validation.value.email, account?.id ?? null);
+    const input = validation.value;
+    let identifier = input.email;
+    if (input.method === 'phone') {
+      const country = await findSignupCountry(input.countryIso2);
+      if (!country) return loginError(400, 'VALIDATION_ERROR', 'Please correct the highlighted fields.', headers,
+        { countryIso2: 'Choose a supported country.' });
+      identifier = `${country.dialCode}${input.phone}`;
+      if (!/^\+[1-9][0-9]{1,14}$/.test(identifier)) {
+        return loginError(400, 'VALIDATION_ERROR', 'Please correct the highlighted fields.', headers,
+          { phone: 'Enter a valid international phone number.' });
+      }
+    }
+    account = input.method === 'phone' ? await findLoginAccountByPhone(identifier) : await findLoginAccount(identifier);
+    valuePolicy = await loadValueAttemptPolicy(identifier, account?.id ?? null, input.method);
     const retryAfterSeconds = valuePolicy ? await activeValueBlockSeconds(valuePolicy) : null;
     if (retryAfterSeconds !== null) {
       return loginError(429, 'TOO_MANY_REQUESTS', 'Please wait before trying again.',
@@ -157,7 +176,7 @@ async function handleLogin(request: Request): Promise<Response> {
     }
     if (!authenticated) {
       if (valuePolicy) noteRequestValue(valuePolicy);
-      return withDeviceCookie(loginError(401, 'INVALID_CREDENTIALS', 'Email or password is incorrect.', headers), device);
+      return withDeviceCookie(loginError(401, 'INVALID_CREDENTIALS', 'Phone, email, or password is incorrect.', headers), device);
     }
     const response = await loginSuccess(authenticated, device, request, headers);
     if (valuePolicy) noteRequestValue(valuePolicy);

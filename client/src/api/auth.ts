@@ -2,11 +2,12 @@ import { apiRequest } from './client';
 import type { VerificationProof } from './verification';
 
 export type LoginValues = { email: string; password: string };
-export type LoginResult = { id: string; firstName: string; lastName: string; email: string };
-export type CurrentUser = { firstName: string; lastName: string; email: string };
+export type PhoneLoginValues = { method: 'phone'; countryIso2: string; phone: string; password: string };
+export type LoginResult = { id: string; firstName: string; lastName: string; email: string | null; phone: string | null };
+export type CurrentUser = { firstName: string; lastName: string; email: string | null; phone: string | null };
 
 /** Sends credentials and lets the platform retain the server's session cookie. */
-export function login(values: LoginValues, verification?: VerificationProof): Promise<LoginResult> {
+export function login(values: LoginValues | PhoneLoginValues, verification?: VerificationProof): Promise<LoginResult> {
   return apiRequest<LoginResult>('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

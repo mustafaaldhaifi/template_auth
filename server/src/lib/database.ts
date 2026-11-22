@@ -14,6 +14,21 @@ export interface DatabaseTables {
     email: string;
     created_at: Generated<Date>;
   };
+  country_codes: {
+    id: Generated<number>;
+    iso2: string;
+    dial_code: string;
+    name: string;
+    is_active: Generated<boolean>;
+  };
+  user_phones: {
+    id: string;
+    user_id: string;
+    country_code_id: number;
+    phone_e164: string;
+    verified_at: Date;
+    created_at: Generated<Date>;
+  };
   user_passwords: {
     user_id: string;
     password_hash: string;

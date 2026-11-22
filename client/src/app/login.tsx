@@ -5,6 +5,7 @@ import AuthInput from '../components/AuthInput';
 import AuthNavigation from '../components/AuthNavigation';
 import AuthScreen from '../components/AuthScreen';
 import AuthSubmitButton from '../components/AuthSubmitButton';
+import PhoneNumberField, { defaultPhoneCountry, type PhoneCountry } from '../components/PhoneNumberField';
 import TurnstileVerification from '../components/TurnstileVerification';
 import type { TurnstileVerificationHandle } from '../components/TurnstileVerification.types';
 import { ApiRequestError } from '../api/client';
@@ -12,23 +13,27 @@ import { login, type LoginValues } from '../api/auth';
 import { authStyles } from '../theme/authStyles';
 import { useRateLimitFeedback } from '../hooks/useRateLimitFeedback';
 
-type LoginField = 'email' | 'password';
+type LoginField = 'email' | 'phone' | 'password';
 type LoginErrors = Partial<Record<LoginField, string>>;
 
 const initialValues: LoginValues = { email: '', password: '' };
 
 /**
  * Checks the two login fields before authentication.
- * 1. Require a valid email address.
+ * 1. Validate phone when entered, otherwise require email.
  * 2. Require a non-empty password.
  * 3. Return messages associated with the invalid fields.
  */
-function validateLogin(values: LoginValues): LoginErrors {
+function validateLogin(values: LoginValues, phone: string, country: PhoneCountry): LoginErrors {
   const errors: LoginErrors = {};
 
-  // STEP 1: Check the email format.
-  if (!/^\S+@\S+\.\S+$/.test(values.email.trim()) || values.email.trim().length > 254) {
-    errors.email = 'Enter a valid email address.';
+  // STEP 1: Validate only the visible identifier, leaving the other draft intact.
+  if (!phone) {
+    if (!/^\S+@\S+\.\S+$/.test(values.email.trim()) || values.email.trim().length > 254) {
+      errors.email = 'Enter a valid email address.';
+    }
+  } else if (phone.length < 4 || !/^\+[1-9]\d{0,3}$/.test(country.dialCode)) {
+    errors.phone = 'Enter a phone number and a valid country code.';
   }
 
   // STEP 2: Require a password without imposing sign-up password rules.
@@ -43,12 +48,14 @@ function validateLogin(values: LoginValues): LoginErrors {
 /**
  * Presents the login form on web, Android, and iOS.
  * 1. Track credentials, field errors, request progress, and web retry timing.
- * 2. Validate credentials and submit a web verification proof through the shared API module.
- * 3. Navigate to the dashboard on success or display the server error.
+ * 2. Submit phone first when entered, otherwise email, with the web proof.
+ * 3. Navigate to the dashboard after successful login or show feedback.
  */
 export default function LoginPage() {
   // STEP 1: Hold only the current form values and feedback.
   const [values, setValues] = useState<LoginValues>(initialValues);
+  const [country, setCountry] = useState<PhoneCountry>(defaultPhoneCountry);
+  const [phone, setPhone] = useState('');
   const [errors, setErrors] = useState<LoginErrors>({});
   const [result, setResult] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,7 +73,8 @@ export default function LoginPage() {
    */
   function updateField(field: LoginField, value: string) {
     // STEP 1: Preserve the other field while saving the edit.
-    setValues((current) => ({ ...current, [field]: value }));
+    if (field === 'phone') setPhone(value);
+    else setValues((current) => ({ ...current, [field]: value }));
 
     // STEP 2: Clear stale feedback after the edit.
     setErrors((current) => {
@@ -86,7 +94,7 @@ export default function LoginPage() {
   async function handleSubmit() {
     // STEP 1: Keep an overlapping request from creating multiple sessions.
     if (submissionInFlight.current || rateLimit.isBlocked()) return;
-    const nextErrors = validateLogin(values);
+    const nextErrors = validateLogin(values, phone, country);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
       setResult('Please correct the highlighted fields.');
@@ -101,7 +109,9 @@ export default function LoginPage() {
     setIsSubmitting(true);
     setResult('');
     try {
-      await login(values, Platform.OS === 'web'
+      await login(phone
+        ? { method: 'phone', countryIso2: country.iso2, phone, password: values.password }
+        : values, Platform.OS === 'web'
         ? { verificationToken, verificationMethod: 'turnstile' }
         : undefined);
       router.replace('/dashboard');
@@ -112,7 +122,8 @@ export default function LoginPage() {
           setErrors({});
           setResult(error.retryAfterSeconds ? '' : error.message);
         } else {
-          setErrors({ email: error.fieldErrors.email, password: error.fieldErrors.password });
+          setErrors({ email: error.fieldErrors.email, phone: error.fieldErrors.phone,
+            password: error.fieldErrors.password });
           setResult(error.message);
         }
       } else {
@@ -135,8 +146,11 @@ export default function LoginPage() {
         ) : null}
 
         <View style={authStyles.form}>
+          <PhoneNumberField country={country} onCountryChange={(next) => { setCountry(next); setErrors({}); setResult(''); }}
+            number={phone} onNumberChange={(next) => updateField('phone', next)} error={errors.phone}
+            editable={!isSubmitting} />
           <AuthInput
-            label="Email address"
+            label="Email address (optional with phone)"
             value={values.email}
             onChangeText={(text) => updateField('email', text)}
             error={errors.email}
@@ -144,6 +158,7 @@ export default function LoginPage() {
             keyboardType="email-address"
             editable={!isSubmitting}
           />
+          <Text style={authStyles.subtitle}>A phone number takes priority when both are entered.</Text>
           <AuthInput
             label="Password"
             value={values.password}

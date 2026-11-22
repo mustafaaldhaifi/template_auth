@@ -2,6 +2,7 @@ import { authCorsHeaders } from '@/features/auth/authCors';
 import { DeviceIssueLimitError } from '@/features/auth/deviceRepository';
 import { resolveOrCreateDevice, withDeviceCookie, type DeviceIdentity } from '@/features/auth/deviceStore';
 import { hashPassword } from '@/features/auth/passwordHash';
+import { handlePhoneSignup } from '@/features/auth/phoneSignup';
 import { verifyAuthRequest } from '@/features/auth/requestVerification';
 import { createSignupAccount } from '@/features/auth/signupRepository';
 import { validateSignupInput } from '@/features/auth/signupValidation';
@@ -15,11 +16,13 @@ export function OPTIONS(request: Request): Response {
 
 /**
  * Validates a sign-up request and creates its account records.
- * 1. Parse and validate the JSON body, returning field errors when needed.
- * 2. Verify the web proof before issuing or reusing a device.
- * 3. Enforce configured limits before device or account work.
- * 4. Hash the password and create all account rows in one transaction.
- * 5. Return account data or a stable duplicate-email/server error response.
+ * 1. Parse JSON and dispatch phone signup to its two-stage handler.
+ * 2. Validate the existing email signup body, returning field errors when needed.
+ * 3. Verify the web proof before issuing or reusing a device.
+ * 4. Enforce configured limits before device or account work.
+ * 5. Resolve a device before email account work.
+ * 6. Hash the password and create all account rows in one transaction.
+ * 7. Return account data or a stable duplicate-email/server error response.
  */
 async function handleSignup(request: Request): Promise<Response> {
   const headers = { ...authCorsHeaders(request), 'Cache-Control': 'no-store' };
@@ -33,6 +36,12 @@ async function handleSignup(request: Request): Promise<Response> {
       { status: 400, headers },
     );
   }
+  // STEP 1: Keep the existing email request contract unchanged.
+  if (body && typeof body === 'object' && !Array.isArray(body) &&
+    (body as Record<string, unknown>).method === 'phone') {
+    return handlePhoneSignup(request, body);
+  }
+  // STEP 2: Validate the email request as before.
   const validation = validateSignupInput(body);
   if (!validation.success) {
     return Response.json(
@@ -47,23 +56,23 @@ async function handleSignup(request: Request): Promise<Response> {
     );
   }
 
-  // STEP 2: Do not create device, IP, or account records for an unverified request.
+  // STEP 3: Do not create device, IP, or account records for an unverified request.
   const verification = await verifyAuthRequest(body, 'signup');
   if (!verification.success) {
     return Response.json({ error: verification.error }, { status: verification.status, headers });
   }
   markRequestVerificationPassed();
-  // STEP 3: Block over-limit verified requests before issuing a device.
+  // STEP 4: Block over-limit verified requests before issuing a device.
   const restriction = await enforceApiRestriction(request, headers);
   if (restriction) return restriction;
 
-  // STEP 4: A verified first request gets a device whether signup succeeds or fails.
+  // STEP 5: A verified first request gets a device whether signup succeeds or fails.
   const { firstName, lastName, email, password } = validation.value;
   let device: DeviceIdentity | null = null;
   try {
     device = await resolveOrCreateDevice(request);
 
-    // STEP 5: Keep all account writes in their existing transaction.
+    // STEP 6: Keep all account writes in their existing transaction.
     const passwordHash = await hashPassword(password);
     const id = await createSignupAccount({ firstName, lastName, email, passwordHash });
     return withDeviceCookie(Response.json(
@@ -77,7 +86,7 @@ async function handleSignup(request: Request): Promise<Response> {
         { status: 429, headers },
       );
     }
-    // STEP 6: Translate the email constraint without exposing database details.
+    // STEP 7: Translate the email constraint without exposing database details.
     if (error && typeof error === 'object' && 'code' in error &&
       'constraint' in error && error.code === '23505' &&
       error.constraint === 'user_emails_email_key') {
